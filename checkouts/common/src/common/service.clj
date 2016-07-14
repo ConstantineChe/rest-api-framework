@@ -30,7 +30,7 @@
     :responses {200 {:body {:data Settings}}}
     :operationId :settings}
    (fn [request]
-     (future (k/test-msg))
+     (future (k/test-msg (-> request :query-params :name)))
      {:status 200
       :body {:data (if-let [name (-> request :query-params :name)]
                      (get-settings name) (get-settings))}})))

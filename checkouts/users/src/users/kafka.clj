@@ -1,11 +1,10 @@
-(ns common.kafka
+(ns users.kafka
   (:require [clj-kafka.producer :as p]
             [clj-kafka.consumer.zk :as c]
             [clj-kafka.core :refer [with-resource]]
             [clj-kafka.zk :as zk]
             [clj-kafka.offset :as offset]
             [clojure.edn :as edn]
-            [common.db :as db]
             [clojure.core.async :as async :refer [>! <! <!! >!!]]))
 
 
@@ -33,23 +32,23 @@
 (defn send-msg! [session topic msg]
   (future (p/send-message @producer (p/message topic (.getBytes session) (to-kafka msg)))))
 
+(defn process-message [{:keys [message sid] :as msg}]
+  (prn "from common: " msg)
+    (case (:type message)
+    :request nil
+    :response (>!! (sid @sid-chans) (:data message))
+    nil)
+  )
+
 (defn get-chan! [sid]
   (if-not (sid @sid-chans)
-    (swap! consumer-chan assoc sid (async/chan)))
+    (swap! sid-chans assoc sid (async/chan)))
   (sid @sid-chans))
-
-(defn process-message [{:keys [message sid] :as msg}]
-  (prn "from users: " msg)
-  (case (:type message)
-    :request (send-msg! (name sid) "common" {:type :response
-                                             :data (db/get-settings)})
-    :response (>!! (sid @sid-chans) (:data message))
-    nil))
 
 (async/go
   (with-resource [consumer @consumer]
     c/shutdown
-    (doseq [msg (c/messages consumer "users")]
+    (doseq [msg (c/messages consumer "common")]
       (>! consumer-chan {:message (from-kafka msg)
                          :sid (session-key msg)}))))
 

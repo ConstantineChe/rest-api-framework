@@ -3,10 +3,14 @@
             [io.pedestal.http.route :as route]
             [io.pedestal.http.body-params :as body-params]
             [io.pedestal.interceptor :refer [interceptor]]
-            [io.pedestal.interceptor.helpers :refer [definterceptor]]
+            [io.pedestal.interceptor.helpers :refer [definterceptor defon-request]]
             [ring.util.response :refer [response status]]
+            [io.pedestal.http.ring-middlewares :as middleware]
+            [clj-redis-session.core :refer [redis-store]]
+            [clojure.string :as str]
             [cheshire.core :as ch]
             [common.kafka :as k]
+            [common.db :as db]
             [pedestal-api
              [core :as api]
              [helpers :refer [before defbefore defhandler handler]]]
@@ -17,10 +21,6 @@
    (s/optional-key :name) s/Str})
 
 
-(defn get-settings
-  ([] {:hello "Hello2"})
-  ([name] {:hello "Hello2"
-           :name name}))
 
 (def settings
   (handler
@@ -30,11 +30,27 @@
     :responses {200 {:body {:data Settings}}}
     :operationId :settings}
    (fn [request]
-     (future (k/test-msg (-> request :query-params :name)))
-     {:status 200
-      :body {:data (if-let [name (-> request :query-params :name)]
-                     (get-settings name) (get-settings))}})))
+     (let [name (-> request :query-params :name)
+           data (db/get-settings name)]
+;       (k/send-msg! data)
+      {:status 200
+       :body {:data data}}))))
 
+(defon-request request-session
+  [request]
+  (let [cookies (get-in request [:headers "cookie"])
+        [_ session] (try (str/split
+                       (first (filter #(.startsWith % "JSESSIONID")
+                                      (str/split cookies #"; ")))
+                       #"=")
+                         (catch java.lang.Exception e
+                           [nil "nil"]))]
+    (assoc request :session-id session)))
+
+(def redis-connection {})
+
+(definterceptor session-interceptor
+  (middleware/session  {:store (redis-store redis-connection)}))
 
 (s/with-fn-validation
   (api/defroutes routes
@@ -45,7 +61,9 @@
              :description  "website settings"
              :externalDocs {:description "Find out more"
                             :url         "http://swagger.io"}}]}
-    [[["/" ^:interceptors [api/error-responses
+    [[["/" ^:interceptors [session-interceptor
+                           request-session
+                           api/error-responses
                            (api/negotiate-response)
                            (api/body-params)
                            api/common-body
@@ -53,7 +71,7 @@
                            (api/validate-response)
                            (api/doc {:tags ["common"]})]
        ["/commons"
-        ["/" {:get settings}]
+        {:get settings}
         ]
 
        ["/swagger.json" {:get api/swagger-json}]

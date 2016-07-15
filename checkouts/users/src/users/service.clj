@@ -3,15 +3,18 @@
             [io.pedestal.http.route :as route]
             [io.pedestal.http.body-params :as body-params]
             [io.pedestal.interceptor :refer [interceptor]]
-            [io.pedestal.interceptor.helpers :refer [definterceptor]]
+            [io.pedestal.interceptor.helpers :refer [definterceptor defon-request]]
             [io.pedestal.http.ring-middlewares :as middleware]
             [clj-redis-session.core :refer [redis-store]]
             [ring.util.response :refer [response status]]
             [clj-http.client :as client]
-            [buddy.sign.jws :as jws]
-            [cheshire.core :as ch]
+            [cheshire.core :as json]
             [environ.core :refer [env]]
-             [pedestal-api
+            [users.session :as session]
+            [users.kafka :as k]
+            [clojure.core.async :refer [<!!]]
+            [clojure.string :as str]
+            [pedestal-api
              [core :as api]
              [helpers :refer [before defbefore defhandler handler]]]
              [schema.core :as s]))
@@ -53,8 +56,7 @@
     :operationId :get-token}
    (fn [request]
      (let [user (-> request :query-params :user)]
-       (-> (response {:data (merge (ch/encode {:token (jws/sign {:user user})})
-                                   {:user user})})
+       (-> (response {:data (session/create-token user)})
            (status 200))))))
 
 (def unsign-token
@@ -66,11 +68,8 @@
     :parameters {:query-params {:token s/Str}}
     :operationId :unsign-token}
    (fn [request]
-     (let [user (-> request :query-params token jws/unsign)]
-       (-> (response {:data (merge
-                             {:status (if user "success" "fail")}
-                             user)})
-           (status 200))))))
+     (-> (response {:data (session/unsign-token (-> request :query-params :token))})
+         (status 200)))))
 
 (def users-with-commons
   (handler
@@ -78,20 +77,33 @@
    {:summary "ms req"
     :responses {200 {:body {:data {:users [User]
                                    :commons Commons}}}}
-    :parameters {}
+    :parameters {:query-params {(s/optional-key :name) s/Str}}
     :operationId :users-with-commons}
    (fn [request]
-     (let [commons (-> (client/get "http://localhost:8081/commons/")
-                       :body (ch/parse-string true) :data)]
+     (let [sid (-> request :session-id)
+           chan (k/get-chan! (keyword sid))]
+       (k/send-msg! sid "users" {:type :request
+                                 :operation :settings})
        (-> (response {:data {:users [{:name "user1"
                                       :email "user1@mail.de"
                                       :token "token1"}
                                      {:name "user2"
                                       :email "user2@mail.te"
                                       :token "token2"}]
-                             :commons commons}})
+                             :commons (<!! chan)}})
            (status 200))))))
 
+
+(defon-request request-session
+  [request]
+  (let [cookies (get-in request [:headers "cookie"])
+        [_ session] (try (str/split
+                       (first (filter #(.startsWith % "JSESSIONID")
+                                      (str/split cookies #"; ")))
+                       #"=")
+                         (catch java.lang.Exception e
+                           [nil "nil"]))]
+    (assoc request :session-id session)))
 
 (def redis-connection {})
 
@@ -108,6 +120,7 @@
              :externalDocs {:description "Find out more"
                             :url         "http://swagger.io"}}]}
     [[["/" ^:interceptors [session-interceptor
+                           request-session
                            api/error-responses
                            (api/negotiate-response)
                            (api/body-params)

@@ -1,16 +1,17 @@
 (ns users.session
-  (:require [buddy.sign.jws :as jws]
-            [cheshire.core :as json]
+  (:require [buddy.sign.jwt :as jwt]
             ))
 
+(def secret "secret")
+
 (defn create-token [user]
-  (merge (json/encode {:token (jws/sign {:user user})})
+  (merge {:token (jwt/sign {:user user} secret)}
          {:user user}))
 
 (defn unsign-token
   "doc-string"
   [token]
-  (let [user (jws/unsign token)]
+  (let [user (jwt/unsign token secret)]
     (merge {:status (if user "success" "fail")}
      user))
   )

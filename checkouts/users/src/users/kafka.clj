@@ -4,6 +4,7 @@
             [clj-kafka.core :refer [with-resource]]
             [clj-kafka.zk :as zk]
             [clj-kafka.offset :as offset]
+            [users.session :as session]
             [clojure.edn :as edn]
             [clojure.core.async :as async :refer [>! <! <!! >!!]]))
 
@@ -30,25 +31,33 @@
 (def session-key (comp keyword #(String. %) #(.key %)))
 
 (defn send-msg! [session topic msg]
-  (future (p/send-message @producer (p/message topic (.getBytes session) (to-kafka msg)))))
-
-(defn process-message [{:keys [message sid] :as msg}]
-  (prn "from common: " msg)
-    (case (:type message)
-    :request nil
-    :response (>!! (sid @sid-chans) (:data message))
-    nil)
-  )
+   (p/send-message @producer (p/message topic (.getBytes session) (to-kafka msg))))
 
 (defn get-chan! [sid]
   (if-not (sid @sid-chans)
     (swap! sid-chans assoc sid (async/chan)))
   (sid @sid-chans))
 
+
+(defmulti process-request (comp :operation :message))
+
+(defmethod process-request :token [{:keys [message sid]}]
+  (send-msg! (name sid) "users" {:type :response
+                                 :data (session/unsign-token (-> message :params :token))}))
+
+(defn process-message [{:keys [message sid] :as msg}]
+  (prn "from common: " msg)
+    (case (:type message)
+    :request (process-request msg)
+    :response (>!! (sid @sid-chans) (:data message))
+    nil)
+  )
+
 (async/go
-  (with-resource [consumer @consumer]
+  (with-resource [cons @consumer]
     c/shutdown
-    (doseq [msg (c/messages consumer "common")]
+    (doseq [msg (c/messages cons "common")]
+      (prn msg)
       (>! consumer-chan {:message (from-kafka msg)
                          :sid (session-key msg)}))))
 

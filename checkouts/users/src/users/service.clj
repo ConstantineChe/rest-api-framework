@@ -28,8 +28,6 @@
   {:hello s/Str
    (s/optional-key :name) s/Str})
 
-(def secret "secret")
-
 (def users
   (handler
    ::users
@@ -58,18 +56,6 @@
      (let [user (-> request :query-params :user)]
        (-> (response {:data (session/create-token user)})
            (status 200))))))
-
-(def unsign-token
-  (handler
-   ::unsign-token
-   {:summary "unsign api token"
-    :responses {200 {:body {:data {(s/optional-key :user) s/Str
-                                   :status s/Str}}}}
-    :parameters {:query-params {:token s/Str}}
-    :operationId :unsign-token}
-   (fn [request]
-     (-> (response {:data (session/unsign-token (-> request :query-params :token))})
-         (status 200)))))
 
 (def users-with-commons
   (handler
@@ -131,8 +117,7 @@
        ["/users"
         {:get users}
         ["/commons" {:get users-with-commons}]
-        ["/token" {:get token}
-         ["/unsign" {:get unsign-token}]]]
+        ["/token" {:get token}]]
 
        ["/swagger.json" {:get api/swagger-json}]
        ["/*resource" {:get api/swagger-ui}]]]]))

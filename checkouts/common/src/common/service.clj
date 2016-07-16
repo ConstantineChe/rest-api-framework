@@ -11,6 +11,7 @@
             [cheshire.core :as ch]
             [common.kafka :as k]
             [common.db :as db]
+            [clojure.core.async :refer [<!!]]
             [pedestal-api
              [core :as api]
              [helpers :refer [before defbefore defhandler handler]]]
@@ -27,14 +28,20 @@
    ::common
    {:summary "website settings"
     :parameters {:query-params {(s/optional-key :name) s/Str}}
-    :responses {200 {:body {:data Settings}}}
+    :responses {200 {:body {:data Settings
+                            (s/optional-key :user) {}}}}
     :operationId :settings}
    (fn [request]
      (let [name (-> request :query-params :name)
-           data (db/get-settings name)]
-;       (k/send-msg! data)
+           data (db/get-settings name)
+           sid (-> request :session-id)
+           chan (k/get-chan! (keyword sid))]
+       (k/send-msg! sid "common" {:type :request
+                                  :operation :token
+                                  :params {:token name}})
       {:status 200
-       :body {:data data}}))))
+       :body {:data data
+              :user (<!! chan)}}))))
 
 (defon-request request-session
   [request]

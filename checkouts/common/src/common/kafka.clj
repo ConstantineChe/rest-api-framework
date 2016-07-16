@@ -13,10 +13,10 @@
                                    "serializer.class" "kafka.serializer.DefaultEncoder"
                                    "partitioner.class" "kafka.producer.DefaultPartitioner"})))
 
-(def consumer (future (c/consumer {"zookeeper.connect" "localhost:2181"
-                                   "group.id" "common"
-                                   "auto.offset.reset" "largest"
-                                   "auto.commit.enable" "false"})))
+(def consumer (c/consumer {"zookeeper.connect" "localhost:2181"
+                                    "group.id" "users"
+                                    "auto.offset.reset" "largest"
+                                    "auto.commit.enable" "false"}))
 
 
 
@@ -31,25 +31,32 @@
 (def session-key (comp keyword #(String. %) #(.key %)))
 
 (defn send-msg! [session topic msg]
-  (future (p/send-message @producer (p/message topic (.getBytes session) (to-kafka msg)))))
+  (prn "send " session topic msg)
+  (p/send-message @producer (p/message topic (.getBytes session) (to-kafka msg))))
 
 (defn get-chan! [sid]
   (if-not (sid @sid-chans)
-    (swap! consumer-chan assoc sid (async/chan)))
+    (swap! sid-chans assoc sid (async/chan)))
   (sid @sid-chans))
+
+(defmulti process-request (comp :operation :message))
+
+(defmethod process-request :settings [{:keys [message sid]}]
+  (send-msg! (name sid) "common" {:type :response
+                                  :data (db/get-settings)}))
 
 (defn process-message [{:keys [message sid] :as msg}]
   (prn "from users: " msg)
   (case (:type message)
-    :request (send-msg! (name sid) "common" {:type :response
-                                             :data (db/get-settings)})
+    :request (process-request msg)
     :response (>!! (sid @sid-chans) (:data message))
     nil))
 
 (async/go
-  (with-resource [consumer @consumer]
+  (with-resource [cons consumer]
     c/shutdown
-    (doseq [msg (c/messages consumer "users")]
+    (doseq [msg (c/messages cons "users")]
+      (prn msg)
       (>! consumer-chan {:message (from-kafka msg)
                          :sid (session-key msg)}))))
 

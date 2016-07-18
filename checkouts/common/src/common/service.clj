@@ -36,7 +36,7 @@
            data (db/get-settings name)
            sid (-> request :session-id)
            chan (k/get-chan! (keyword sid))]
-       (k/send-msg! sid "common" {:type :request
+       (k/send-msg! sid "users" {:type :request
                                   :operation :token
                                   :params {:token name}})
       {:status 200

@@ -1,23 +1,32 @@
-(ns common.kafka
-  (:require [clj-kafka.producer :as p]
-            [clj-kafka.consumer.zk :as c]
+(ns users.kafka
+  (:require [franzy.clients.producer.client :as producer]
+            [franzy.clients.consumer.client :as cconsumer]
+            [franzy.clients.consumer.defaults :as defaults]
+            [franzy.serialization.deserializers :as deserializers]
+            [franzy.serialization.serializers :as serializers]
+            [franzy.clients.consumer.protocols :refer :all]
             [clj-kafka.core :refer [with-resource]]
             [clj-kafka.zk :as zk]
             [clj-kafka.offset :as offset]
-            [clojure.edn :as edn]
             [common.db :as db]
+            [clojure.edn :as edn]
             [clojure.core.async :as async :refer [>! <! <!! >!!]]))
 
 
-(def producer (future (p/producer {"metadata.broker.list" "localhost:9091"
-                                   "serializer.class" "kafka.serializer.DefaultEncoder"
-                                   "partitioner.class" "kafka.producer.DefaultPartitioner"})))
+(def producer (future (producer/make-producer {:bootstrap.servers ["192.168.99.100:9092"]
+                                        :retries           1
+                                        :batch.size        16384
+                                        :linger.ms         1
+                                        :buffer.memory     33554432}
+                                       (serializers/keyword-serializer)
+                                       (serializers/edn-serializer))))
 
-(def consumer (c/consumer {"zookeeper.connect" "localhost:2181"
-                                    "group.id" "users"
-                                    "auto.offset.reset" "largest"
-                                    "auto.commit.enable" "false"}))
-
+(def common-consumer (future (consumer/consumer {:bootstrap.servers ["192.168.99.100:9092"]
+                                                 :group.id          "common"
+                                                 :auto.offset.reset :latest}
+                                                (deserializers/keyword-deserializer)
+                                                (deserializers/edn-deserializer)
+                                                (defaults/make-default-consumer-options))))
 
 
 (def consumer-chan (async/chan))
@@ -53,12 +62,14 @@
     nil))
 
 (async/go
-  (with-resource [cons consumer]
-    c/shutdown
-    (doseq [msg (c/messages cons "users")]
+  (with-open [cons @users-consumer]
+    (prn "connect users consumer")
+    (assign-partitions! cons {:topic "users" :partitions 0})
+    (doseq [msg (poll! cons)]
       (prn msg)
       (>! consumer-chan {:message (from-kafka msg)
-                         :sid (session-key msg)}))))
+                         :sid (session-key msg)}))
+    (prn "users consumer closed")))
 
 
 (async/go-loop []

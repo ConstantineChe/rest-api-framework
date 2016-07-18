@@ -14,6 +14,7 @@
                  [midje "1.8.3"]
                  [buddy/buddy-auth "1.1.0"]
                  [buddy/buddy-sign "1.1.0"]
+                 [ymilky/franzy "0.0.1"]
                  [clj-kafka "0.3.4" :exclusions [org.slf4j/slf4j-log4j12]]
                  [clj-http "2.2.0"]
                  [ch.qos.logback/logback-classic "1.1.7" :exclusions [org.slf4j/slf4j-api]]

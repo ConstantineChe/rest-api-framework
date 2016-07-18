@@ -1,6 +1,10 @@
 (ns users.kafka
-  (:require [clj-kafka.producer :as p]
-            [clj-kafka.consumer.zk :as c]
+  (:require [franzy.clients.producer.client :as producer]
+            [franzy.clients.consumer.client :as cconsumer]
+            [franzy.clients.consumer.defaults :as defaults]
+            [franzy.serialization.deserializers :as deserializers]
+            [franzy.serialization.serializers :as serializers]
+            [franzy.clients.consumer.protocols :refer :all]
             [clj-kafka.core :refer [with-resource]]
             [clj-kafka.zk :as zk]
             [clj-kafka.offset :as offset]
@@ -9,14 +13,21 @@
             [clojure.core.async :as async :refer [>! <! <!! >!!]]))
 
 
-(def producer (future (p/producer {"metadata.broker.list" "localhost:9091"
-                                   "serializer.class" "kafka.serializer.DefaultEncoder"
-                                   "partitioner.class" "kafka.producer.DefaultPartitioner"})))
+(def producer (future (producer/make-producer {:bootstrap.servers ["192.168.99.100:9092"]
+                                        :retries           1
+                                        :batch.size        16384
+                                        :linger.ms         1
+                                        :buffer.memory     33554432}
+                                       (serializers/keyword-serializer)
+                                       (serializers/edn-serializer))))
 
-(def consumer (future (c/consumer {"zookeeper.connect" "localhost:2181"
-                                   "group.id" "common"
-                                   "auto.offset.reset" "largest"
-                                   "auto.commit.enable" "false"})))
+(def common-consumer (future (consumer/consumer {:bootstrap.servers ["192.168.99.100:9092"]
+                                                 :group.id          "common"
+                                                 :auto.offset.reset :latest}
+                                                (deserializers/keyword-deserializer)
+                                                (deserializers/edn-deserializer)
+                                                (defaults/make-default-consumer-options))))
+
 
 
 
@@ -31,7 +42,8 @@
 (def session-key (comp keyword #(String. %) #(.key %)))
 
 (defn send-msg! [session topic msg]
-   (p/send-message @producer (p/message topic (.getBytes session) (to-kafka msg))))
+  (prn "send " session topic msg)
+  (p/send-message @producer (p/message topic (.getBytes session) (to-kafka msg))))
 
 (defn get-chan! [sid]
   (if-not (sid @sid-chans)
@@ -54,12 +66,14 @@
   )
 
 (async/go
-  (with-resource [cons @consumer]
-    c/shutdown
-    (doseq [msg (c/messages cons "common")]
+  (with-open [cons @common-consumer]
+    (prn "connect common consumer")
+    (assign-partitions! cons {:topic "common" :partitions 0})
+    (doseq [msg (poll! cons)]
       (prn msg)
       (>! consumer-chan {:message (from-kafka msg)
-                         :sid (session-key msg)}))))
+                         :sid (session-key msg)}))
+    (prn "closed common consumer")))
 
 
 (async/go-loop []

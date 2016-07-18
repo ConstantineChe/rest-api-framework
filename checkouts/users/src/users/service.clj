@@ -68,7 +68,7 @@
    (fn [request]
      (let [sid (-> request :session-id)
            chan (k/get-chan! (keyword sid))]
-       (k/send-msg! sid "users" {:type :request
+       (k/send-msg! sid "common" {:type :request
                                  :operation :settings})
        (-> (response {:data {:users [{:name "user1"
                                       :email "user1@mail.de"

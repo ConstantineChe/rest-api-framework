@@ -13,4 +13,4 @@
   :resource-paths ["config", "resources" "checkouts/users/src" "checkouts/common/src"]
   :modules {:dirs ["checkouts/common" "checkouts/users"]}
 
-  :main services.core)
+  :main ^{:skip-aot true} services.core)

@@ -14,6 +14,7 @@
                  [midje "1.8.3"]
                  [clj-http "2.2.0"]
                  [ymilky/franzy "0.0.1"]
+                 [ymilky/franzy-nippy "0.0.1"]
                  [clj-kafka "0.3.4" :exclusions [org.slf4j/slf4j-log4j12]]
                  [ch.qos.logback/logback-classic "1.1.7" :exclusions [org.slf4j/slf4j-api]]
                  [org.slf4j/jul-to-slf4j "1.7.21"]
@@ -32,4 +33,4 @@
                    :db-password "123123q"
                    :db "services"}
              :uberjar {:aot [common.server]}}
-  :main common.server)
+  :main ^{:skip-aot true} common.server)

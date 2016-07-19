@@ -1,49 +1,57 @@
 (ns users.kafka
   (:require [franzy.clients.producer.client :as producer]
-            [franzy.clients.consumer.client :as cconsumer]
+            [franzy.clients.consumer.client :as consumer]
             [franzy.clients.consumer.defaults :as defaults]
             [franzy.serialization.deserializers :as deserializers]
             [franzy.serialization.serializers :as serializers]
+            [franzy.serialization.nippy.deserializers :refer [nippy-deserializer]]
+            [franzy.serialization.nippy.serializers :refer [nippy-serializer]]
             [franzy.clients.consumer.protocols :refer :all]
+            [franzy.clients.producer.protocols :refer :all]
             [clj-kafka.core :refer [with-resource]]
             [clj-kafka.zk :as zk]
             [clj-kafka.offset :as offset]
             [users.session :as session]
             [clojure.edn :as edn]
-            [clojure.core.async :as async :refer [>! <! <!! >!!]]))
+            [clojure.core.async :as async :refer [>! <! <!! >!!]])
+  (:import [franzy.serialization.serializers KeywordSerializer EdnSerializer]
+           [franzy.serialization.deserializers KeywordDeserializer EdnDeserializer]))
 
 
-(def producer (future (producer/make-producer {:bootstrap.servers ["192.168.99.100:9092"]
-                                        :retries           1
-                                        :batch.size        16384
-                                        :linger.ms         1
-                                        :buffer.memory     33554432}
-                                       (serializers/keyword-serializer)
-                                       (serializers/edn-serializer))))
+(defn producer []
+  (let [pc {:bootstrap.servers ["192.168.99.100:9092"]
+            :client.id "users"}
+        key-serializer (serializers/string-serializer)
+        value-serializer (nippy-serializer)]
+    (producer/make-producer pc
+                            key-serializer
+                            value-serializer
+                            )))
 
-(def common-consumer (future (consumer/consumer {:bootstrap.servers ["192.168.99.100:9092"]
-                                                 :group.id          "common"
-                                                 :auto.offset.reset :latest}
-                                                (deserializers/keyword-deserializer)
-                                                (deserializers/edn-deserializer)
-                                                (defaults/make-default-consumer-options))))
+(defn common-consumer []
+  (let [cc {:bootstrap.servers ["192.168.99.100:9092"]
+            :group.id          "users"
+            :auto.offset.reset :latest}
+        key-deserializer (deserializers/string-deserializer)
+        value-deserializer (nippy-deserializer)
+        defaults (defaults/make-default-consumer-options)]
+    (consumer/make-consumer cc
+                            key-deserializer
+                            value-deserializer
+                            defaults
+                            )))
 
 
 
 
 (def consumer-chan (async/chan))
 
+(def producer-chan (async/chan))
+
 (defonce sid-chans (atom {}))
 
-(def from-kafka (comp edn/read-string #(String. %) #(.value %)))
-
-(def to-kafka (comp #(.getBytes %) pr-str))
-
-(def session-key (comp keyword #(String. %) #(.key %)))
-
 (defn send-msg! [session topic msg]
-  (prn "send " session topic msg)
-  (p/send-message @producer (p/message topic (.getBytes session) (to-kafka msg))))
+  (>!! producer-chan {:topic topic :partition 0 :key session :value msg}))
 
 (defn get-chan! [sid]
   (if-not (sid @sid-chans)
@@ -54,8 +62,8 @@
 (defmulti process-request (comp :operation :message))
 
 (defmethod process-request :token [{:keys [message sid]}]
-  (send-msg! (name sid) "users" {:type :response
-                                 :data (session/unsign-token (-> message :params :token))}))
+  (send-msg! sid "users" {:type :response
+                          :data (session/unsign-token (-> message :params :token))}))
 
 (defn process-message [{:keys [message sid] :as msg}]
   (prn "from common: " msg)
@@ -63,16 +71,20 @@
     :request (process-request msg)
     :response (>!! (sid @sid-chans) (:data message))
     nil)
-  )
+    )
 
 (async/go
-  (with-open [cons @common-consumer]
+  (with-open [p (producer)]
+    (prn (send-sync! p (<! producer-chan)))))
+
+(async/go
+  (with-open [c (common-consumer)]
     (prn "connect common consumer")
     (assign-partitions! cons {:topic "common" :partitions 0})
-    (doseq [msg (poll! cons)]
+    (doseq [msg (poll! c)]
       (prn msg)
-      (>! consumer-chan {:message (from-kafka msg)
-                         :sid (session-key msg)}))
+      (>! consumer-chan {:message (:value msg)
+                         :sid (:key msg)}))
     (prn "closed common consumer")))
 
 

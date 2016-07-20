@@ -3,7 +3,7 @@
             [io.pedestal.http.route :as route]
             [io.pedestal.http.body-params :as body-params]
             [io.pedestal.interceptor :refer [interceptor]]
-            [io.pedestal.interceptor.helpers :refer [definterceptor defon-request]]
+            [io.pedestal.interceptor.helpers :as interceptor :refer [definterceptor defon-request]]
             [ring.util.response :refer [response status]]
             [io.pedestal.http.ring-middlewares :as middleware]
             [clj-redis-session.core :refer [redis-store]]
@@ -43,21 +43,22 @@
        :body {:data data
               :user (<!! chan)}}))))
 
-(defon-request request-session
-  [request]
-  (let [cookies (get-in request [:headers "cookie"])
-        [_ session] (try (str/split
-                       (first (filter #(.startsWith % "JSESSIONID")
-                                      (str/split cookies #"; ")))
-                       #"=")
-                         (catch java.lang.Exception e
-                           [nil "nil"]))]
-    (assoc request :session-id session)))
+(def request-session
+  (interceptor/before
+   ::request-session
+   (fn [request]
+    (let [cookies (get-in request [:headers "cookie"])
+          [_ session] (try (str/split
+                            (first (filter #(.startsWith % "JSESSIONID")
+                                           (str/split cookies #"; ")))
+                            #"=")
+                           (catch java.lang.Exception e
+                             [nil "nil"]))]
+      (assoc request :session-id session)))))
 
 (def redis-connection {})
 
-(definterceptor session-interceptor
-  (middleware/session  {:store (redis-store redis-connection)}))
+(def session (middleware/session  {:store (redis-store redis-connection)}))
 
 (s/with-fn-validation
   (api/defroutes routes
@@ -68,7 +69,7 @@
              :description  "website settings"
              :externalDocs {:description "Find out more"
                             :url         "http://swagger.io"}}]}
-    [[["/" ^:interceptors [session-interceptor
+    [[["/" ^:interceptors [session
                            request-session
                            api/error-responses
                            (api/negotiate-response)
@@ -112,7 +113,7 @@
               ;; Either :jetty, :immutant or :tomcat (see comments in project.clj)
               ::http/type :immutant
               ;;::http/host "localhost"
-              ::http/port 8080
+              ::http/port 8081
               ;; Options to pass to the container (Jetty)
               ::http/container-options {:h2c? true
                                         :h2? false

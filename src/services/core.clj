@@ -1,7 +1,8 @@
 (ns services.core
   (:require [users.server :as users]
             [common.server :as commons]
-            [io.pedestal.http :as http]))
+            [io.pedestal.http :as http])
+  (:gen-class))
 
 (defn -main
   "run services"

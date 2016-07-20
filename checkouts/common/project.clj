@@ -31,6 +31,7 @@
                    :dependencies [[io.pedestal/pedestal.service-tools "0.5.0"]]}
              :env {:db-user "constantine"
                    :db-password "123123q"
-                   :db "services"}
+                   :db "services"
+                   :kafka-server "localhost:9091"}
              :uberjar {:aot [common.server]}}
   :main ^{:skip-aot true} common.server)

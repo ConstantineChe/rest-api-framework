@@ -1,0 +1,25 @@
+version: '2'
+services:
+  web:
+    build: .
+    links:
+      - db
+      - redis
+      - kafka
+    depends_on:
+      - db
+      - redis
+      - kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_SERVER: kafka:9092
+  redis:
+    image: redis
+  db:
+    image: postgres
+  kafka:
+    image: ches/kafka
+    environment:
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_ADVERTISED_HOST_NAME: localhost

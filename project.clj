@@ -12,5 +12,6 @@
   :target-path "target/%s/"
   :resource-paths ["config", "resources" "checkouts/users/src" "checkouts/common/src"]
   :modules {:dirs ["checkouts/common" "checkouts/users"]}
+  :profiles {:uberjar {:aot :all}}
 
   :main ^{:skip-aot true} services.core)

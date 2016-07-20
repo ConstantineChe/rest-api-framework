@@ -13,27 +13,30 @@
             [clj-kafka.offset :as offset]
             [common.db :as db]
             [clojure.edn :as edn]
+            [environ.core :refer [env]]
             [clojure.core.async :as async :refer [>! <! <!! >!!]])
   (:import [franzy.serialization.serializers KeywordSerializer EdnSerializer]
            [franzy.serialization.deserializers KeywordDeserializer EdnDeserializer]))
 
+(def bootstrap-servers (if-let [serv (:kafka-server env)] serv "localhost:9091"))
 
-(def producer
-  (let [pc {:bootstrap.servers ["192.168.99.100:9092"]
+(defn producer []
+  (let [pc {:bootstrap.servers [bootstrap-servers]
             :client.id "common"}
-        key-serializer (KeywordSerializer.)
-        value-serializer (EdnSerializer.)]
+        key-serializer (serializers/string-serializer)
+        value-serializer (serializers/string-serializer)]
     (producer/make-producer pc
                             key-serializer
                             value-serializer
                             )))
 
-(def common-consumer
-  (let [cc {:bootstrap.servers ["192.168.99.100:9092"]
-            :group.id          "common"
-            :auto.offset.reset :latest}
-        key-deserializer (KeywordDeserializer.)
-        value-deserializer (EdnDeserializer.)
+(defn users-consumer []
+  (let [cc {:bootstrap.servers [bootstrap-servers]
+            :group.id "common"
+            :auto.offset.reset :latest
+            :enable.auto.commit true}
+        key-deserializer (deserializers/string-deserializer)
+        value-deserializer (deserializers/string-deserializer)
         defaults (defaults/make-default-consumer-options)]
     (consumer/make-consumer cc
                             key-deserializer
@@ -59,7 +62,7 @@
 (defmulti process-request (comp :operation :message))
 
 (defmethod process-request :settings [{:keys [message sid]}]
-  (send-msg! (name sid) "common" {:type :response
+  (send-msg! sid "common" {:type :response
                                   :data (db/get-settings)}))
 
 (defn process-message [{:keys [message sid] :as msg}]
@@ -67,26 +70,33 @@
   (case (:type message)
     :request (process-request msg)
     :response (>!! (sid @sid-chans) (:data message))
-    nil))
+    (println "Invalid msg format: " message)))
 
 (defn send-msg! [session topic msg]
   (>!! producer-chan {:topic topic :partition 0 :key session :value msg}))
 
-(async/go
-  (with-open [p producer]
-    (prn (send-sync! p (<! producer-chan)))))
+(defn start-producer! []
+  (async/go-loop []
+    (let [msg (<! producer-chan)]
+      (with-open [p (producer)]
+        (send-sync! p msg))
+      (recur))))
 
-(async/go
-  (with-open [cons users-consumer]
-    (prn "connect users consumer")
-    (assign-partitions! cons {:topic "users" :partitions 0})
-    (doseq [msg (poll! cons)]
-      (prn msg)
-      (>! consumer-chan {:message (:value msg)
-                         :sid (:key msg)}))
-    (prn "users consumer closed")))
-
+(defn start-consumer! []
+  (async/go-loop []
+    (with-open [c (users-consumer)]
+      (assign-partitions! c [{:topic :users :partition 0}])
+      (let [cr (poll! c)]
+        (doseq [msg (into [] cr)]
+          (>! consumer-chan {:message (:value msg)
+                             :sid (:key msg)}))))
+    (recur)
+    ))
 
 (async/go-loop []
   (process-message (<! consumer-chan))
   (recur))
+
+(start-producer!)
+
+(start-consumer!)

@@ -3,7 +3,7 @@
             [io.pedestal.http.route :as route]
             [io.pedestal.http.body-params :as body-params]
             [io.pedestal.interceptor :refer [interceptor]]
-            [io.pedestal.interceptor.helpers :refer [definterceptor defon-request]]
+            [io.pedestal.interceptor.helpers :as interceptor :refer [definterceptor defon-request]]
             [io.pedestal.http.ring-middlewares :as middleware]
             [clj-redis-session.core :refer [redis-store]]
             [ring.util.response :refer [response status]]
@@ -80,21 +80,22 @@
            (status 200))))))
 
 
-(defon-request request-session
-  [request]
-  (let [cookies (get-in request [:headers "cookie"])
-        [_ session] (try (str/split
-                       (first (filter #(.startsWith % "JSESSIONID")
-                                      (str/split cookies #"; ")))
-                       #"=")
-                         (catch java.lang.Exception e
-                           [nil "nil"]))]
-    (assoc request :session-id session)))
+(def request-session
+  (interceptor/before
+   ::request-session
+   (fn [request]
+    (let [cookies (get-in request [:headers "cookie"])
+          [_ session] (try (str/split
+                            (first (filter #(.startsWith % "JSESSIONID")
+                                           (str/split cookies #"; ")))
+                            #"=")
+                           (catch java.lang.Exception e
+                             [nil "nil"]))]
+      (assoc request :session-id session)))))
 
 (def redis-connection {})
 
-(definterceptor session-interceptor
-  (middleware/session  {:store (redis-store redis-connection)}))
+(def session (middleware/session  {:store (redis-store redis-connection)}))
 
 (s/with-fn-validation
   (api/defroutes routes
@@ -105,7 +106,7 @@
              :description  "api users"
              :externalDocs {:description "Find out more"
                             :url         "http://swagger.io"}}]}
-    [[["/" ^:interceptors [session-interceptor
+    [[["/" ^:interceptors [session
                            request-session
                            api/error-responses
                            (api/negotiate-response)

@@ -30,20 +30,20 @@
   (let [pc {:bootstrap.servers [bootstrap-servers]
             :client.id "users"}
         key-serializer (serializers/keyword-serializer)
-        value-serializer (serializers/edn-serializer)]
+        value-serializer (nippy-serializer)
+        ]
     (producer/make-producer pc
                             key-serializer
                             value-serializer
                             )))
 
-(defn common-consumer []
+(defn consumer []
   (let [cc {:bootstrap.servers       [bootstrap-servers]
             :group.id                "users"
             :auto.offset.reset       :earliest
-            :enable.auto.commit      true
-            :auto.commit.interval.ms 1000}
+            :enable.auto.commit      true}
         key-deserializer (deserializers/keyword-deserializer)
-        value-deserializer (deserializers/edn-deserializer)
+        value-deserializer (nippy-deserializer)
         defaults (defaults/make-default-consumer-options)]
     (consumer/make-consumer cc
                             key-deserializer
@@ -51,19 +51,20 @@
                             defaults
                             )))
 
+(def producer-chan (async/chan))
 
 (def consumer-chan (async/chan))
 
 (defonce sid-chans (atom {}))
 
 (defn send-msg! [session topic msg]
-  (with-open [p (producer)]
-    (send-sync! p {:topic topic :partition 0 :key session :value msg})))
+  (>!! producer-chan {:topic "users" :partition 0 :key session :value msg}))
 
 (defn get-chan! [sid]
   (if-not (sid @sid-chans)
     (swap! sid-chans assoc sid (async/chan)))
   (sid @sid-chans))
+
 
 (defmulti process-request (comp :operation :message))
 
@@ -71,38 +72,50 @@
   (send-msg! sid "users" {:type :response
                           :data (session/unsign-token (-> message :params :token))}))
 
+(defmethod process-request :default [msg]
+  (println "Invalid request operation: " (-> msg :message :operation)))
+
+
+
 (defn process-message [{:keys [message sid] :as msg}]
   (prn "from common: " msg)
     (case (:type message)
     :request (process-request msg)
-    :response (>!! (sid @sid-chans) (:data message))
-    (println "Invalid msg format: " message))
+    :response (if-let [ch (sid @sid-chans)] (>!! ch (:data message)) (println "No chan to response"))
+    (println "Invalid msg format:" message))
     )
-
-(defn start-producer! []
-  (async/go-loop []
-    (let [msg (<! producer-chan)]
-
-      (recur))))
-
-(send-msg! "test" "common" {:test "tttess"})
-
 
 
 (defn start-consumer! []
-  (async/go-loop []
-    (with-open [c (common-consumer)]
-      (assign-partitions! c [{:topic :common :partition 0}])
-      (let [cr (poll! c)]
-        (doseq [msg (into [] cr)]
-          (>! consumer-chan {:message (:value msg)
-                             :sid (:key msg)}))))
-    (recur)
-    ))
+  (async/thread
+    (let [common-partition {:topic :common :partition 0}]
+      (with-open [c (consumer)]
+        (assign-partitions! c [common-partition])
+        (seek-to-end-offset! c [common-partition])
+        (while true
+          (let [cr (poll! c)]
+            (doseq [msg (into [] cr)]
+              (prn msg)
+              (process-message {:message (:value msg)
+                                :sid (:key msg)}))))
+        ))))
 
-
-(async/go-loop []
-  (process-message (<! consumer-chan))
-  (recur))
+(defn start-producer! []
+  (async/thread
+    (with-open [p (producer)]
+      (while true
+        (let [msg (<!! producer-chan)]
+          (flush! p)
+          (prn msg)
+          (prn (send-sync! p msg))))
+      )))
 
 (start-consumer!)
+(start-producer!)
+
+
+(comment (with-open [c (consumer)]
+    (assign-partitions! c [{:topics :users :partition 0}])
+    (clojure.pprint/pprint (into [] (poll! c))))
+
+ (send-msg! "user" "users" "{:type :request :operation :token}"))

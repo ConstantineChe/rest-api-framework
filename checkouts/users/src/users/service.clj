@@ -66,9 +66,11 @@
     :parameters {:query-params {(s/optional-key :name) s/Str}}
     :operationId :users-with-commons}
    (fn [request]
-     (let [sid (-> request :session-id)
-           chan (k/get-chan! (keyword sid))]
-       (k/send-msg! sid "common" {:type :request
+     (let [sid (-> request :session-id keyword)
+           sid (if sid sid :nil)
+           chan (k/get-chan! sid)]
+;       (clojure.pprint/pprint request)
+       (k/send-msg! sid "users" {:type :request
                                  :operation :settings})
        (-> (response {:data {:users [{:name "user1"
                                       :email "user1@mail.de"
@@ -83,15 +85,15 @@
 (def request-session
   (interceptor/before
    ::request-session
-   (fn [request]
-    (let [cookies (get-in request [:headers "cookie"])
-          [_ session] (try (str/split
-                            (first (filter #(.startsWith % "JSESSIONID")
-                                           (str/split cookies #"; ")))
-                            #"=")
-                           (catch java.lang.Exception e
-                             [nil "nil"]))]
-      (assoc request :session-id session)))))
+   (fn [{:keys [request] :as context}]
+     (let [cookies (get-in request [:headers "cookie"])
+           [_ session] (try (str/split
+                             (first (filter #(.startsWith % "JSESSIONID")
+                                            (str/split cookies #"; ")))
+                             #"=")
+                            (catch java.lang.Exception e
+                              [nil "nil"]))]
+       (assoc context :request (assoc request :session-id session))))))
 
 (def redis-connection {})
 

@@ -29,24 +29,25 @@
    {:summary "website settings"
     :parameters {:query-params {(s/optional-key :name) s/Str}}
     :responses {200 {:body {:data Settings
-                            (s/optional-key :user) {}}}}
+                            (s/optional-key :user) s/Str}}}
     :operationId :settings}
    (fn [request]
      (let [name (-> request :query-params :name)
            data (db/get-settings name)
-           sid (-> request :session-id)
-           chan (k/get-chan! (keyword sid))]
-       (k/send-msg! sid "users" {:type :request
+           sid (-> request :session-id keyword)
+           sid (if sid sid :nil)
+           chan (k/get-chan! sid)]
+       (k/send-msg! sid "common" {:type :request
                                   :operation :token
-                                  :params {:token name}})
+                                  :params {:token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidGVzdCJ9.wk1swko8GbuwRMRuTR6q_x7AZQGbbwm8sZLyg90afbs"}})
       {:status 200
        :body {:data data
-              :user (<!! chan)}}))))
+              :user (:user (<!! chan))}}))))
 
 (def request-session
   (interceptor/before
    ::request-session
-   (fn [request]
+   (fn [{:keys [request] :as context}]
     (let [cookies (get-in request [:headers "cookie"])
           [_ session] (try (str/split
                             (first (filter #(.startsWith % "JSESSIONID")
@@ -54,7 +55,7 @@
                             #"=")
                            (catch java.lang.Exception e
                              [nil "nil"]))]
-      (assoc request :session-id session)))))
+      (assoc context :request (assoc request :session-id session))))))
 
 (def redis-connection {})
 

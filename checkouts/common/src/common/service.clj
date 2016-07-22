@@ -10,6 +10,7 @@
             [clojure.string :as str]
             [cheshire.core :as ch]
             [common.kafka :as k]
+            [kafka-service.core :as service]
             [common.db :as db]
             [clojure.core.async :refer [<!!]]
             [pedestal-api
@@ -36,8 +37,8 @@
            data (db/get-settings name)
            sid (-> request :session-id keyword)
            sid (if sid sid :nil)
-           chan (k/get-chan! sid)]
-       (k/send-msg! sid "common" {:type :request
+           chan (service/get-chan! sid)]
+       (service/send-msg! sid "common" {:type :request
                                   :operation :token
                                   :params {:token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidGVzdCJ9.wk1swko8GbuwRMRuTR6q_x7AZQGbbwm8sZLyg90afbs"}})
       {:status 200

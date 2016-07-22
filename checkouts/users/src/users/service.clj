@@ -7,11 +7,11 @@
             [io.pedestal.http.ring-middlewares :as middleware]
             [clj-redis-session.core :refer [redis-store]]
             [ring.util.response :refer [response status]]
-            [clj-http.client :as client]
             [cheshire.core :as json]
             [environ.core :refer [env]]
             [users.session :as session]
             [users.kafka :as k]
+            [kafka-service.core :as service]
             [clojure.core.async :refer [<!!]]
             [clojure.string :as str]
             [pedestal-api
@@ -68,9 +68,9 @@
    (fn [request]
      (let [sid (-> request :session-id keyword)
            sid (if sid sid :nil)
-           chan (k/get-chan! sid)]
+           chan (service/get-chan! sid)]
 ;       (clojure.pprint/pprint request)
-       (k/send-msg! sid "users" {:type :request
+       (service/send-msg! sid "users" {:type :request
                                  :operation :settings})
        (-> (response {:data {:users [{:name "user1"
                                       :email "user1@mail.de"

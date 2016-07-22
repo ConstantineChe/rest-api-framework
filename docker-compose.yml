@@ -16,11 +16,17 @@ services:
     image: redis
   db:
     image: postgres
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - 2181:2181
   kafka:
-    image: ches/kafka
+    image: spotify/kafka
     ports:
       - "9092:9092"
+    depends_on:
+      - zookeeper
     environment:
-      KAFKA_ZOOKEEPER_CONNECT: 192.168.99.100:2181
-      KAFKA_ADVERTISED_PORT: 9092
-      KAFKA_ADVERTISED_HOST_NAME: 192.168.99.100
+      ZK_CONNECT: zookeeper:2181
+      ADVERTISED_PORT: 9092
+      ADVERTISED_HOST_NAME: localhost

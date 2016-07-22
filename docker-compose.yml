@@ -30,3 +30,4 @@ services:
       ZK_CONNECT: zookeeper:2181
       ADVERTISED_PORT: 9092
       ADVERTISED_HOST_NAME: localhost
+      TOPICS: users,common

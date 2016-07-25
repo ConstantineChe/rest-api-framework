@@ -13,7 +13,7 @@
             [users.session :as session]
             [users.kafka :as k]
             [utils.kafka-service :as service]
-            [utils.interceptors :refer [token-auth request-session restrict]]
+            [utils.interceptors :refer [token-auth request-session restrict-unauthorized]]
             [clojure.core.async :refer [<!!]]
             [clojure.string :as str]
             [pedestal-api
@@ -99,7 +99,7 @@
     [[["/" ^:interceptors [session
                            request-session
                            token-auth
-                           restrict
+                           restrict-unauthorized
                            api/error-responses
                            (api/negotiate-response)
                            (api/body-params)

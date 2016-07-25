@@ -11,7 +11,7 @@
             [cheshire.core :as ch]
             [common.kafka :as k]
             [utils.kafka-service :as service]
-            [utils.interceptors :refer [token-auth request-session restrict]]
+            [utils.interceptors :refer [token-auth request-session restrict-unauthorized]]
             [common.db :as db]
             [clojure.core.async :refer [<!!]]
             [pedestal-api
@@ -55,7 +55,7 @@
     [[["/" ^:interceptors [session
                            request-session
                            token-auth
-                           restrict
+                           restrict-unauthorized
                            api/error-responses
                            (api/negotiate-response)
                            (api/body-params)

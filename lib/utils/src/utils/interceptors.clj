@@ -26,7 +26,7 @@
                    (:user user)
                    nil))))))
 
-(def restrict
+(def restrict-unauthorized
   (interceptor/after
    ::restrict
    (fn [{:keys [request response] :as context}]

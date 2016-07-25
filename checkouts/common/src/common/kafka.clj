@@ -1,5 +1,5 @@
 (ns common.kafka
-  (:require [kafka-service.core :as service]
+  (:require [utils.kafka-service :as service]
             [common.db :as db]
             [environ.core :refer [env]]))
 

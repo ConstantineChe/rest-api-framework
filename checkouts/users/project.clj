@@ -8,7 +8,7 @@
                  [io.pedestal/pedestal.service "0.5.0" :exclusions [org.clojure/tools.reader]]
                  [io.pedestal/pedestal.immutant "0.5.0"]
                  [pedestal-api "0.2.0" :exclusions [prismatic/schema]]
-                 [kafka-service "0.0.2"]
+                 [utils "0.0.2"]
                  [com.taoensso/carmine "2.13.1"]
                  [clj-redis-session "2.1.0"]
                  [prismatic/schema "1.1.2"]

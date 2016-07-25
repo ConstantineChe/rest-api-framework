@@ -1,5 +1,5 @@
 (ns users.kafka
-  (:require [kafka-service.core :as service]
+  (:require [utils.kafka-service :as service]
             [users.session :as session]
             [environ.core :refer [env]]))
 

@@ -3,7 +3,8 @@
             [io.pedestal.http.route :as route]
             [io.pedestal.http.body-params :as body-params]
             [io.pedestal.interceptor :refer [interceptor]]
-            [io.pedestal.interceptor.helpers :as interceptor :refer [definterceptor defon-request]]
+            [io.pedestal.interceptor.helpers :as interceptor
+             :refer [definterceptor defon-request]]
             [io.pedestal.http.ring-middlewares :as middleware]
             [clj-redis-session.core :refer [redis-store]]
             [ring.util.response :refer [response status]]
@@ -11,7 +12,8 @@
             [environ.core :refer [env]]
             [users.session :as session]
             [users.kafka :as k]
-            [kafka-service.core :as service]
+            [utils.kafka-service :as service]
+            [utils.interceptors :refer [token-auth request-session restrict]]
             [clojure.core.async :refer [<!!]]
             [clojure.string :as str]
             [pedestal-api
@@ -80,40 +82,6 @@
                              :commons (<!! chan)}})
            (status 200))))))
 
-
-(def token-auth
-  (interceptor/before
-   ::token-auth
-   (fn [{:keys [request] :as context}]
-     (let [token (get-in request [:headers "auth-token"])
-           user (if token (session/unsign-token token))]
-       (assoc-in context [:request :user]
-                 (if (= "success" (:status user))
-                   (:user user)
-                   nil))))))
-
-(def restrict
-  (interceptor/after
-   ::restrict
-   (fn [{:keys [request response] :as context}]
-     (if (:user request)
-       context
-       (assoc context :response
-              {:status 401
-               :body {:message "Not authorized"}})))))
-
-(def request-session
-  (interceptor/before
-   ::request-session
-   (fn [{:keys [request] :as context}]
-     (let [cookies (get-in request [:headers "cookie"])
-           [_ session] (try (str/split
-                             (first (filter #(.startsWith % "JSESSIONID")
-                                            (str/split cookies #"; ")))
-                             #"=")
-                            (catch java.lang.Exception e
-                              [nil "nil"]))]
-       (assoc context :request (assoc request :session-id session))))))
 
 (def redis-connection {})
 

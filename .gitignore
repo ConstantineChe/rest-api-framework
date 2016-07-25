@@ -8,7 +8,6 @@ pom.xml.asc
 
 # Leiningen
 classes/
-lib/
 native/
 target/
 .lein-*

@@ -69,7 +69,6 @@
      (let [sid (-> request :session-id keyword)
            sid (if sid sid :nil)
            chan (service/get-chan! sid)]
-;       (clojure.pprint/pprint request)
        (service/send-msg! sid "users" {:type :request
                                  :operation :settings})
        (-> (response {:data {:users [{:name "user1"
@@ -81,6 +80,27 @@
                              :commons (<!! chan)}})
            (status 200))))))
 
+
+(def token-auth
+  (interceptor/before
+   ::token-auth
+   (fn [{:keys [request] :as context}]
+     (let [token (get-in request [:headers "auth-token"])
+           user (if token (session/unsign-token token))]
+       (assoc-in context [:request :user]
+                 (if (= "success" (:status user))
+                   (:user user)
+                   nil))))))
+
+(def restrict
+  (interceptor/after
+   ::restrict
+   (fn [{:keys [request response] :as context}]
+     (if (:user request)
+       context
+       (assoc context :response
+              {:status 401
+               :body {:message "Not authorized"}})))))
 
 (def request-session
   (interceptor/before
@@ -110,6 +130,8 @@
                             :url         "http://swagger.io"}}]}
     [[["/" ^:interceptors [session
                            request-session
+                           token-auth
+                           restrict
                            api/error-responses
                            (api/negotiate-response)
                            (api/body-params)

@@ -12,6 +12,9 @@ services:
       - kafka
     environment:
       KAFKA_SERVER: kafka:9092
+    expose:
+      - "8080"
+      - "8081"
   redis:
     image: redis
   db:
@@ -29,5 +32,5 @@ services:
     environment:
       ZK_CONNECT: zookeeper:2181
       ADVERTISED_PORT: 9092
-      ADVERTISED_HOST_NAME: localhost
+      ADVERTISED_HOST_NAME: 127.0.0.1
       TOPICS: users,common

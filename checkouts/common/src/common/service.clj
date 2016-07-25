@@ -34,16 +34,36 @@
     :operationId :settings}
    (fn [request]
      (let [name (-> request :query-params :name)
-           data (db/get-settings name)
-           sid (-> request :session-id keyword)
-           sid (if sid sid :nil)
-           chan (service/get-chan! sid)]
-       (service/send-msg! sid "common" {:type :request
-                                  :operation :token
-                                  :params {:token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidGVzdCJ9.wk1swko8GbuwRMRuTR6q_x7AZQGbbwm8sZLyg90afbs"}})
+           data (db/get-settings name)]
       {:status 200
-       :body {:data data
-              :user (:user (<!! chan))}}))))
+       :body {:data data}}))))
+
+(def token-auth
+  (interceptor/before
+   ::token-auth
+   (fn [{:keys [request] :as context}]
+     (let [token (get-in request [:headers "auth-token"])
+           msg-key (keyword (str "auth-" token))
+           chan (if token (service/get-chan! msg-key))
+           _ (service/send-msg! msg-key "common"
+                                {:type :request
+                                 :operation :token
+                                 :params {:token token}})
+           user (if token (<!! chan))]
+       (assoc-in context [:request :user]
+                 (if (= "success" (:status user))
+                   (:user user)
+                   nil))))))
+
+(def restrict
+  (interceptor/after
+   ::restrict
+   (fn [{:keys [request response] :as context}]
+     (if (:user request)
+       context
+       (assoc context :response
+              {:status 401
+               :body {:message "Not authorized"}})))))
 
 (def request-session
   (interceptor/before
@@ -73,6 +93,8 @@
                             :url         "http://swagger.io"}}]}
     [[["/" ^:interceptors [session
                            request-session
+                           token-auth
+                           restrict
                            api/error-responses
                            (api/negotiate-response)
                            (api/body-params)

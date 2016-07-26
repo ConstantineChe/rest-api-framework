@@ -95,7 +95,7 @@
     [[["/" ^:interceptors [session
                            request-session
                            token-auth
-                           restrict-unauthorized
+;                           restrict-unauthorized
                            api/error-responses
                            (api/negotiate-response)
                            (api/body-params)

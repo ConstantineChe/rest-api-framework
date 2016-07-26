@@ -27,9 +27,12 @@
             [lein-midje "3.0.0"]
             [lein-environ "1.0.3"]
             [lein-localrepo "0.5.3"]]
-
+  :aliases {"migrate"  ["run" "-m" "users.db/migrate"]
+            "rollback" ["run" "-m" "users.db/rollback"]}
   :profiles {:dev {:aliases {"run-dev" ["trampoline" "run" "-m" "users.server/run-dev"]}
                    :dependencies [[io.pedestal/pedestal.service-tools "0.5.0" :exclusions [org.clojure/tools.reader]]]
-                   :env {:kafka-server "localhost:9091"}}
+                   :env {:kafka-server "localhost:9091"
+                         :db "carbook_users"}}
+             :test {:env {:db "carbook_users"}}
              :uberjar {:aot [users.server]}}
   :main ^{:skip-aot true} users.server)

@@ -14,7 +14,7 @@
    ::token-auth
    (fn [{:keys [request] :as context}]
      (let [token (get-in request [:headers "auth-token"])
-           msg-key (keyword (str "auth-" token))
+           msg-key (keyword (str ";; auth-" token))
            chan (if token (service/get-chan! msg-key))
            _ (service/send-msg! msg-key "common"
                                 {:type :request

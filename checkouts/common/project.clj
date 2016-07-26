@@ -26,6 +26,8 @@
             [lein-midje "3.0.0"]
             [lein-environ "1.0.3"]
             [lein-localrepo "0.5.3"]]
+  :aliases {"migrate"  ["run" "-m" "common.db/migrate"]
+            "rollback" ["run" "-m" "common.db/rollback"]}
   :profiles {:dev {:aliases {"run-dev" ["trampoline" "run" "-m" "common.server/run-dev"]}
                    :dependencies [[io.pedestal/pedestal.service-tools "0.5.0"]]}
              :env {:db-user "constantine"

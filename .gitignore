@@ -26,6 +26,9 @@ repl-port
 # OS X
 .DS_Store
 
+# Emacs
+.#*
+
 # Logging
 *.log
 /logs/

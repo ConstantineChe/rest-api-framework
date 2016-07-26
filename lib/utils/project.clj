@@ -1,4 +1,4 @@
-(defproject utils "0.2.0-SNAPSHOT"
+(defproject utils "0.3.0-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -7,6 +7,7 @@
                  [environ "1.0.3"]
                  [io.pedestal/pedestal.service "0.5.0"]
                  [io.pedestal/pedestal.immutant "0.5.0"]
+                 [prismatic/schema "1.1.3"]
                  [com.taoensso/carmine "2.13.1"]
                  [clj-redis-session "2.1.0"]
                  [com.taoensso/encore "2.65.0"]

@@ -14,6 +14,9 @@
             [users.kafka :as k]
             [utils.kafka-service :as service]
             [utils.interceptors :refer [token-auth request-session restrict-unauthorized]]
+            [utils.schema
+             [users :as us]
+             [common :as cs]]
             [clojure.core.async :refer [<!!]]
             [clojure.string :as str]
             [pedestal-api
@@ -21,20 +24,13 @@
              [helpers :refer [before defbefore defhandler handler]]]
              [schema.core :as s]))
 
-(s/defschema User
-  {:name s/Str
-   :email s/Str
-   :token s/Str})
 
-(s/defschema Commons
-  {:hello s/Str
-   (s/optional-key :name) s/Str})
 
 (def users
   (handler
    ::users
    {:summary "api users"
-    :responses {200 {:body {:data [User]}}}
+    :responses {200 {:body {:data [us/User]}}}
     :parameters {:query-params {(s/optional-key :name) s/Str}}
     :operationId :users}
    (fn [request]
@@ -63,8 +59,8 @@
   (handler
    ::users-with-commons
    {:summary "ms req"
-    :responses {200 {:body {:data {:users [User]
-                                   :commons Commons}}}}
+    :responses {200 {:body {:data {:users [us/User]
+                                   :commons cs/Settings}}}}
     :parameters {:query-params {(s/optional-key :name) s/Str}}
     :operationId :users-with-commons}
    (fn [request]

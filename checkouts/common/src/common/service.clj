@@ -12,6 +12,7 @@
             [common.kafka :as k]
             [utils.kafka-service :as service]
             [utils.interceptors :refer [token-auth request-session restrict-unauthorized]]
+            [utils.schema.common :as cs]
             [common.db :as db]
             [clojure.core.async :refer [<!!]]
             [pedestal-api
@@ -19,18 +20,12 @@
              [helpers :refer [before defbefore defhandler handler]]]
             [schema.core :as s]))
 
-(s/defschema Settings
-  {:hello s/Str
-   (s/optional-key :name) s/Str})
-
-
-
 (def settings
   (handler
    ::common
    {:summary "website settings"
     :parameters {:query-params {(s/optional-key :name) s/Str}}
-    :responses {200 {:body {:data Settings
+    :responses {200 {:body {:data cs/Settings
                             (s/optional-key :user) s/Str}}}
     :operationId :settings}
    (fn [request]

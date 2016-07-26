@@ -11,7 +11,8 @@
 (defn unsign-token
   "doc-string"
   [token]
-  (let [user (jwt/unsign token secret)]
+  (let [user (try (jwt/unsign token secret)
+                  (catch java.lang.Exception e nil))]
     (merge {:status (if user "success" "fail")}
      user))
   )

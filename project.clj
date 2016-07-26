@@ -11,7 +11,7 @@
   :plugins [[lein-modules "0.3.11"]]
   :target-path "target/%s/"
   :resource-paths ["config", "resources" "checkouts/users/src" "checkouts/common/src"]
-  :modules {:dirs ["checkouts/common" "checkouts/users"]}
+  :modules {:dirs ["checkouts/common" "checkouts/users" "lib/utils"]}
   :profiles {:uberjar {:aot :all}}
   :aot :all
   :main services.core)

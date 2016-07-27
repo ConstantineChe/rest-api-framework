@@ -1,6 +1,7 @@
 (ns utils.db
   (:require
    [korma.db :as kdb]
+   [korma.core :as kc]
    [ragtime.jdbc :as jdbc]
    [ragtime.repl :as repl]))
 
@@ -22,3 +23,6 @@
   "This funtion preforms rollback by one migration from current state."
   [config]
   (fn [& args] (repl/rollback config)))
+
+(defn cast-type [value type]
+  (kc/raw (str "'" value "'::" type)))

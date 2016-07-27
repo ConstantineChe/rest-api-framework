@@ -11,6 +11,7 @@
             [cheshire.core :as json]
             [environ.core :refer [env]]
             [users.session :as session]
+            [users.db :as db]
             [users.kafka :as k]
             [utils.kafka-service :as service]
             [utils.interceptors :refer [token-auth request-session restrict-unauthorized]]
@@ -22,7 +23,7 @@
             [pedestal-api
              [core :as api]
              [helpers :refer [before defbefore defhandler handler]]]
-             [schema.core :as s]))
+            [schema.core :as s]))
 
 
 
@@ -30,18 +31,25 @@
   (handler
    ::users
    {:summary "api users"
-    :responses {200 {:body {:data [us/User]}}}
+    :responses {200 {:body {:data [us/UserWithId]}}}
     :parameters {:query-params {(s/optional-key :name) s/Str}}
     :operationId :users}
    (fn [request]
-     (-> (response {:data [{:name "user1"
-                            :email "user1@mail.de"
-                            :token "token1"}
-                           {:name "user2"
-                            :email "user2@mail.te"
-                            :token "token2"}]})
+     (-> (response {:data (db/get-users)})
          (status 200)
          (assoc-in [:session :name] (-> request :query-params :name))))))
+
+
+(def create-user
+  (handler
+   ::create-user
+   {:summary "create new user"
+    :responses {201 {:body {:message s/Str}}}
+    :parameters {:query-params us/User}
+    :operationId :create-user}
+   (fn [request]
+     (db/create-user (:query-params request))
+     {:status 201 :body {:message "user created"}})))
 
 (def token
   (handler
@@ -59,7 +67,7 @@
   (handler
    ::users-with-commons
    {:summary "ms req"
-    :responses {200 {:body {:data {:users [us/User]
+    :responses {200 {:body {:data {:users [us/UserWithId]
                                    :commons cs/Settings}}}}
     :parameters {:query-params {(s/optional-key :name) s/Str}}
     :operationId :users-with-commons}
@@ -69,12 +77,7 @@
            chan (service/get-chan! sid)]
        (service/send-msg! sid "users" {:type :request
                                  :operation :settings})
-       (-> (response {:data {:users [{:name "user1"
-                                      :email "user1@mail.de"
-                                      :token "token1"}
-                                     {:name "user2"
-                                      :email "user2@mail.te"
-                                      :token "token2"}]
+       (-> (response {:data {:users (db/get-users)
                              :commons (<!! chan)}})
            (status 200))))))
 
@@ -104,7 +107,8 @@
                            (api/validate-response)
                            (api/doc {:tags ["users"]})]
        ["/users"
-        {:get users}
+        {:get users
+         :post create-user}
         ["/commons" {:get users-with-commons}]
         ["/token" {:get token}]]
 

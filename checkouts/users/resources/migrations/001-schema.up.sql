@@ -13,7 +13,8 @@ CREATE TABLE users_tbl (
        phones json,
        status user_status DEFAULT 'basic',
        dob date,
-       enabled boolean
+       enabled boolean,
+       CONSTRAINT unique_email UNIQUE(email)
        );
 
 CREATE TABLE vehicles_tbl (
@@ -40,7 +41,7 @@ CREATE TABLE vehicle_models_tbl (
        enabled boolean
        );
 
-CREATE TABLE vehicles_modifications (
+CREATE TABLE vehicle_modifications_tbl (
        id serial,
        model_id integer,
        name text,

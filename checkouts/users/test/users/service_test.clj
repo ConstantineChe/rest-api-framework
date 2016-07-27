@@ -4,19 +4,17 @@
             [io.pedestal.test :refer :all]
             [io.pedestal.http :as bootstrap]
             [clojure.java.jdbc :as sql]
+            [ragtime.repl :as repl]
             [users.db :as db]
             [utils.db :as dbu]
+            [cheshire.core :as json]
             [users.service :as service]
-            [environ.core :as env]))
+            [environ.core :refer [env]]))
 
 (def service
   (::bootstrap/service-fn (bootstrap/create-servlet service/service)))
 
-(def test-db-connection (dbu/db-connection {:db (str (or (:db env) (:users-db env)) "_test")
-                                            :user (:db-user env)
-                                            :password (:db-password env)}))
-
-(def config (db/load-config test-db-connection))
+(def config (dbu/load-config db/db-connection))
 
 (def tables ["users_tbl" "vehicles_tbl" "vehicle_makes_tbl" "vehicle_models_tbl" "vehicle_modifications_tbl"])
 
@@ -26,42 +24,73 @@
            (.executeUpdate s query))))
 
 (defn init-db! [tests]
-  (try (exec-raw (str "CREATE DATABASE " (:db env) "_test"))
-       (catch PSQLException e
-         nil))
-  (kdb/defdb test-db test-db-connection)
   (repl/migrate config)
   (try (tests)
        (finally (repl/rollback config (-> config :migrations count)))))
 
 (defn clear-tables! [test]
   (try (test)
-       (finally (dorun (map #(exec-raw (str "TRUNCATE TABLE " %) tables))))))
+       (finally (do (println "clear tables")
+                    (dorun (map #(exec-raw (str "TRUNCATE TABLE " %)) tables))))))
 
 (use-fixtures :once init-db!)
 (use-fixtures :each clear-tables!)
 
-(deftest home-page-test
-  (is (=
-       (:body (response-for service :get "/"))
-       "Hello World!"))
-  (is (=
-       (:headers (response-for service :get "/"))
-       {"Content-Type" "text/html;charset=UTF-8"
-        "Strict-Transport-Security" "max-age=31536000; includeSubdomains"
-        "X-Frame-Options" "DENY"
-        "X-Content-Type-Options" "nosniff"
-        "X-XSS-Protection" "1; mode=block"})))
+(with-state-changes [(before :facts (repl/migrate config))
+                     (after :facts (repl/rollback config (-> config :migrations count)))]
+ (facts "about users service"
+        (with-state-changes [(before :facts (do (println "clear tables")
+                                                (dorun (map #(exec-raw (str "TRUNCATE TABLE " %)) tables))
+                                                (db/create-user {:name "test"
+                                                                 :surname "tester"
+                                                                 :middlename "T"
+                                                                 :email "test@tet.de"
+                                                                 :password "pass"
+                                                                 :registration_date "2011-11-11"
+                                                                 :gender "male"
+                                                                 :phones ["1231232" "9332032030"]
+                                                                 :status "basic"
+                                                                 :dob "2011-11-11"
+                                                                 :enabled true})
+                                                (db/create-user {:name "test"
+                                                                 :surname "tester2"
+                                                                 :middlename "T"
+                                                                 :email "test@test.de"
+                                                                 :password "passwd"
+                                                                 :registration_date "2011-11-11"
+                                                                 :gender "male"
+                                                                 :phones ["1231232" "9332032030"]
+                                                                 :status "basic"
+                                                                 :dob "2011-11-11"
+                                                                 :enabled true})))]
+          (fact "/users returns a list of database enties"
+                (update (json/parse-string (:body (response-for service :get "/users")) true) :data
+                        (fn [users] (map #(dissoc % :password) users))) =>
+                {:data [{:email "test@tet.de",
+                         :name "test",
+                         :surname "tester",
+                         :middlename "T",
+                         :dob "2011-11-11",
+                         :phones ["1231232" "9332032030"],
+                         :status "basic",
+                         :id 1,
+                         :gender "male",
+                         :registration_date "2011-11-11",
+                         :enabled true}
+                        {:email "test@test.de",
+                         :name "test",
+                         :surname "tester2",
+                         :middlename "T",
+                         :dob "2011-11-11",
+                         :phones ["1231232" "9332032030"],
+                         :status "basic",
+                         :id 2,
+                         :gender "male",
+                         :registration_date "2011-11-11",
+                         :enabled true}]
+                 })
+          )))
 
-
-(deftest about-page-test
-  (is (.contains
-       (:body (response-for service :get "/about"))
-       "Clojure 1.8"))
-  (is (=
-       (:headers (response-for service :get "/about"))
-       {"Content-Type" "text/html;charset=UTF-8"
-        "Strict-Transport-Security" "max-age=31536000; includeSubdomains"
-        "X-Frame-Options" "DENY"
-        "X-Content-Type-Options" "nosniff"
-        "X-XSS-Protection" "1; mode=block"})))
+(facts "about addition"
+       (fact "addition is commutable"
+             (+ 1 2) => (+ 2 1)))

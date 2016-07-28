@@ -10,11 +10,12 @@
             [ring.util.response :refer [response status]]
             [cheshire.core :as json]
             [environ.core :refer [env]]
+            [buddy.hashers :refer [check]]
             [users.session :as session]
             [users.db :as db]
             [users.kafka :as k]
             [utils.kafka-service :as service]
-            [utils.interceptors :refer [token-auth request-session restrict-unauthorized]]
+            [utils.interceptors :refer [request-session restrict-unauthorized]]
             [utils.schema
              [users :as us]
              [common :as cs]]
@@ -45,23 +46,29 @@
    ::create-user
    {:summary "create new user"
     :responses {201 {:body {:message s/Str}}}
-    :parameters {:query-params us/User}
+    :parameters {:body-params us/User}
     :operationId :create-user}
    (fn [request]
-     (db/create-user (:query-params request))
+     (db/create-user (:body-params request))
      {:status 201 :body {:message "user created"}})))
 
-(def token
+(def login
   (handler
    ::token
-   {:summary "api token"
-    :responses {200 {:body {:data {:token s/Str :user s/Str}}}}
-    :parameters {:query-params {:user s/Str}}
+   {:summary "login"
+    :responses {200 {:body {:message s/Str (s/optional-key :data) {:token s/Str :user s/Str}}}}
+    :parameters {:body-params {:email s/Str :password s/Str}}
     :operationId :get-token}
    (fn [request]
-     (let [user (-> request :query-params :user)]
-       (-> (response {:data (session/create-token user)})
-           (status 200))))))
+     (let [{:keys [email password]} (:body-params request)
+           client (get-in request [:headers "user-agent"])
+           user (db/get-user-by-email email)]
+       (if (check password (:password user))
+         (-> (response {:message "success" :data {:token (session/create-token client {:email email})
+                               :user email}})
+            (status 200)
+            (assoc-in [:session :email] email))
+           (response {:message "invalid username or password"}))))))
 
 (def users-with-commons
   (handler
@@ -82,6 +89,18 @@
            (status 200))))))
 
 
+(def token-auth
+   (interceptor/before
+    ::token-auth
+    (fn [{:keys [request] :as context}]
+      (let [token (get-in request [:headers "auth-token"])
+            client (get-in request [:headers "user-agent"])
+            user (if token (session/unsign-token client token))]
+        (assoc-in context [:request :user]
+                  (if (= "success" (:status user))
+                    (:user user)
+                    nil))))))
+
 (def redis-connection {})
 
 (def session (middleware/session  {:store (redis-store redis-connection)}))
@@ -96,9 +115,7 @@
              :externalDocs {:description "Find out more"
                             :url         "http://swagger.io"}}]}
     [[["/" ^:interceptors [session
-                           request-session
                            token-auth
-;                           restrict-unauthorized
                            api/error-responses
                            (api/negotiate-response)
                            (api/body-params)
@@ -106,12 +123,11 @@
                            (api/coerce-request)
                            (api/validate-response)
                            (api/doc {:tags ["users"]})]
-       ["/users"
+       ["/users" ;^:interceptors [restrict-unauthorized]
         {:get users
          :post create-user}
-        ["/commons" {:get users-with-commons}]
-        ["/token" {:get token}]]
-
+        ["/commons" {:get users-with-commons}]]
+       ["/login" {:post login}]
        ["/swagger.json" {:get api/swagger-json}]
        ["/*resource" {:get api/swagger-ui}]]]]))
 

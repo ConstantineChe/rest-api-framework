@@ -4,14 +4,13 @@
 
 (def secret "secret")
 
-(defn create-token [user]
-  (merge {:token (jwt/sign {:user user} secret)}
-         {:user user}))
+(defn create-token [client data]
+  (jwt/sign data (str client secret)))
 
 (defn unsign-token
   "doc-string"
-  [token]
-  (let [user (try (jwt/unsign token secret)
+  [client token]
+  (let [user (try (jwt/unsign token (str client secret))
                   (catch java.lang.Exception e nil))]
     (merge {:status (if user "success" "fail")}
      user))

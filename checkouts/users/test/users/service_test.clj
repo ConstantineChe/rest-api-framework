@@ -36,6 +36,7 @@
 (use-fixtures :once init-db!)
 (use-fixtures :each clear-tables!)
 
+
 (with-state-changes [(before :facts (repl/migrate config))
                      (after :facts (repl/rollback config (-> config :migrations count)))]
  (facts "about users service"
@@ -89,8 +90,16 @@
                          :registration_date "2011-11-11",
                          :enabled true}]
                  })
+          (fact "user can login"
+                (json/parse-string
+                 (:body (response-for service :post "/login"
+                                      :body (json/generate-string {:password "passwd" :email "test@test.de"})
+                                      :headers {"Content-Type" "application/json"}))
+                 true)
+                =>
+                {:message "success"
+                 :data
+                 {:user "test@test.de"
+                  :token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAdGVzdC5kZSJ9.5-m2leEx_Fzx6K5Qk8knTi_XA9abJsRwkw0jJHn8ecA"}}
+                )
           )))
-
-(facts "about addition"
-       (fact "addition is commutable"
-             (+ 1 2) => (+ 2 1)))

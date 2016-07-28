@@ -21,8 +21,9 @@
 (defmulti process-request (comp :operation :message))
 
 (defmethod process-request :token [{:keys [message sid]}]
-  (service/send-msg! sid "users" {:type :response
-                          :data (session/unsign-token (-> message :params :token))}))
+  (let [{:keys [client token]} (:params message)]
+    (service/send-msg! sid "users" {:type :response
+                                    :data (session/unsign-token client token)})))
 
 (defmethod process-request :default [msg]
   (println "Invalid request operation: " (-> msg :message :operation)))

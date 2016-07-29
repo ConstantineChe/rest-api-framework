@@ -22,9 +22,9 @@
 
 (def google-service
   (let [builder (doto (ServiceBuilder.)
-                  (.apiKey "AIzaSyAGUF08yBlVgypDHqDtTUmp7Y-a4mMkYnA")
-                  (.apiSecret "anonymous")
-                  (.scope "https://docs.google.com/feeds/")
+                  (.apiKey "332296593369-rkjeql76as0omvr02qqvod86slp0m78o.apps.googleusercontent.com")
+                  (.apiSecret "EPVJDDiLqBMQMlZXiNYClqlf")
+                  (.scope "https://www.googleapis.com/auth/plus.login")
                   (.callback "http:/localhost:8080/test")
                   )]
     (.build builder (GoogleApi20/instance))))

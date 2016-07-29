@@ -48,9 +48,8 @@
              :externalDocs {:description "Find out more"
                             :url         "http://swagger.io"}}]}
     [[["/" ^:interceptors [session
-                           request-session
                            token-auth
-                           restrict-unauthorized
+                           ;restrict-unauthorized
                            api/error-responses
                            (api/negotiate-response)
                            (api/body-params)

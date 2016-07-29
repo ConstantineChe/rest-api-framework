@@ -9,6 +9,8 @@
             [clj-time.format :as f]
             [clj-time.core :as t]
             [clojure.string :as str]
+            [taoensso.carmine :as car :refer [wcar]]
+            [clojure.set :as set]
             [buddy.hashers :refer [encrypt]]))
 
 (def db-connection
@@ -29,8 +31,28 @@
          (f/unparse sql-format (t/to-time-zone (t/date-time year month day)
                                                (t/time-zone-for-offset 2)))))
 
+(defn reset-tags [& tags]
+  (let [keys (for [tag tags]
+               (into #{} (wcar {} (car/keys (str "*:" tag ":*")))))]
+    (doseq [key (apply set/intersection keys)]
+      (wcar {} (car/del key)))))
+
+(reset-tags "vehicles-count" "tt")
+
 (defentity users
   (kc/table "users_tbl"))
+
+(defentity vehicles
+  (kc/table "vehicles_tbl"))
+
+(defentity vehicle_makes
+  (kc/table "vehicle_makes_tbl"))
+
+(defentity vehicle_models
+  (kc/table "vehicle_models_tbl"))
+
+(defentity vehicle_modifications_tbl
+  (kc/table "vehicle_modifications_tbl"))
 
 (def users-from-db-transducer
   (map (fn [user] (-> (update user :phones #(json/parse-string (.getValue %) true))
@@ -58,19 +80,23 @@
 (s/defn get-users :- (s/maybe [user-schema/UserWithId]) []
   (sequence users-from-db-transducer (select users)))
 
-;(s/with-fn-validation (get-users))
+(s/defn get-users-vehicles :- s/Any
+  [user :- s/Str])
 
-(comment (s/with-fn-validation
-           (get-user-by-email "test@tet.de"))
 
-         (s/with-fn-validation (create-user {:name "test"
-                                             :surname "tester"
-                                             :middlename "T"
-                                             :email "test@tet.de"
-                                             :password "pass"
-                                             :registration_date "2011-11-11"
-                                             :gender "male"
-                                             :phones ["1231232" "9332032030"]
-                                             :status "basic"
-                                             :dob "2011-11-11"
-                                             :enabled true})))
+(s/defn create-vehicle :- s/Int
+  [vehicle :- s/Any user :- s/Str]
+  (let [new-vehicle (insert vehicles vehicle)]
+    (reset-tags "vehicles-count" (str user))))
+
+(s/defn create-vehicle-make :- s/Int
+  [vehicle-make :- s/Any]
+  (:id (insert vehicle-makes vehicle-make)))
+
+(s/defn create-vehicle-model :- s/Int
+  [vehicle-model :- s/Any]
+  (:id (insert vehicle-models vehicle-model)))
+
+(s/defn create-vehicle-modification :- s/Int
+  [vehicle-modification :- s/Any]
+  (:id (insert vehicle_modifications vehicle_modification)))

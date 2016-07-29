@@ -1,18 +1,21 @@
 (ns utils.schema.users
   (:require [schema.core :as s]))
 
+(defn opt [key]
+  (s/optional-key key))
+
 (s/defschema User
-  {:name s/Str
-   :surname s/Str
-   :middlename s/Str
+  {(opt :name) s/Str
+   (opt :surname) s/Str
+   (opt :middlename) s/Str
    :email s/Str
    :password s/Str
    :registration_date s/Str
-   :gender (s/enum "male" "female")
-   :phones [s/Str]
+   (opt :gender) (s/enum "male" "female")
+   (opt :phones) [s/Str]
    :status (s/enum "basic" "vip")
-   :dob s/Str
-   :enabled (s/enum s/Bool "true" "false")})
+   (opt :dob) s/Str
+   :enabled s/Bool})
 
 (s/defschema UserWithId
   (merge User {:id s/Int}))

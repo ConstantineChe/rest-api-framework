@@ -68,7 +68,7 @@
                                :user email}})
             (status 200)
             (assoc-in [:session :email] email))
-           (response {:message "invalid username or password"}))))))
+         (response {:message "invalid username or password"}))))))
 
 (def users-with-commons
   (handler
@@ -88,6 +88,16 @@
                              :commons (<!! chan)}})
            (status 200))))))
 
+(def create-vehicle
+  (handler
+   ::create-vehicle
+   {:summary "Create new vehicle"}))
+
+(def create-vehicle-make ())
+
+(def create-vehicle-model ())
+
+(def create-vehicle-modification ())
 
 (def token-auth
    (interceptor/before
@@ -127,6 +137,10 @@
         {:get users
          :post create-user}
         ["/commons" {:get users-with-commons}]]
+       ["/vehicles" {:post create-vehicle} ^:interceptors [restrict-unauthorized]
+        ["/models" {:post create-vehicle-model}]
+        ["/makes" {:post create-vehicle-make}]
+        ["modifications" {:post create-vehicle-modification}]]
        ["/login" {:post login}]
        ["/swagger.json" {:get api/swagger-json}]
        ["/*resource" {:get api/swagger-ui}]]]]))

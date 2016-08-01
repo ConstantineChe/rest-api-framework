@@ -17,6 +17,7 @@
             [users.kafka :as k]
             [utils.kafka-service :as service]
             [clojure.java.io :as io]
+            [users.social-login :as social]
             [utils.interceptors :refer [request-session restrict-unauthorized]]
             [utils.schema
              [users :as us]
@@ -149,6 +150,7 @@
                   (if (= "success" (:status user))
                     (:user user)
                     nil))))))
+(defn fb-login [request] (response (social/fb-access-token  (-> request :params :code))))
 
 (defn login-page
   [request]
@@ -195,7 +197,8 @@
 
 (defroutes html-routes
   [[["/" ^:interceptors [http/html-body]
-     ["/login" {:get login-page}]
+     ["/login" {:get login-page}
+      ["/fb" {:get fb-login}]]
      ["/register" {:get register-page}]]]])
 
 (def routes (concat html-routes api-routes))

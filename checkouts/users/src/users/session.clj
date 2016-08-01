@@ -4,8 +4,8 @@
 
 (def secret "secret")
 
-(defn create-token [client data]
-  (jwt/sign data (str client secret)))
+(defn create-token [client user]
+  (jwt/sign user (str client secret)))
 
 (defn unsign-token
   "doc-string"

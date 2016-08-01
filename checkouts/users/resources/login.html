@@ -1,0 +1,40 @@
+<html>
+  <head>
+    <title>login</title>
+  </head>
+  <body>
+    <h2>Login</h2>
+    <form method="post" id="login-form" action="/users/token">
+      <label for="email">Email: </label>
+      <input type="email" name="email" value="" />
+      <label for="password">Password: </label>
+      <input type="password" name="password" value="" />
+      <input type="submit" value="Login"/>
+    </form>
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+    <script type="text/javascript">
+      $(document).ready(function() {
+          $("#login-form").on("submit", function(event) {
+              event.preventDefault()
+              var $inputs = $('#login-form :input');
+              var values = {};
+              $inputs.each(function() {
+                  if (this.name != "") {
+                      values[this.name] = $(this).val();
+                  }
+              });
+              console.log(values);
+              $.ajax({type: "POST",
+                      url: "/users/token",
+                      data: JSON.stringify(values),
+                      success: function(data) {
+                          alert(JSON.stringify(data));
+                      },
+                      contentType: "application/json",
+                      dataType: "json"
+                     });
+          })
+      });
+    </script>
+  </body>
+</html>

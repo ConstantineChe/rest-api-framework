@@ -45,13 +45,13 @@
 (defentity vehicles
   (kc/table "vehicles_tbl"))
 
-(defentity vehicle_makes
+(defentity vehicle-makes
   (kc/table "vehicle_makes_tbl"))
 
-(defentity vehicle_models
+(defentity vehicle-models
   (kc/table "vehicle_models_tbl"))
 
-(defentity vehicle_modifications_tbl
+(defentity vehicle-modifications
   (kc/table "vehicle_modifications_tbl"))
 
 (def users-from-db-transducer
@@ -61,42 +61,43 @@
                      (update :status #(.getValue %))
                      (update :gender #(.getValue %))))))
 
-(s/defn create-user :- s/Int
-  [user :- user-schema/User]
-  (:id (insert users
-               (kc/values (-> (update user :password encrypt)
-                              (update :registration_date db/cast-type "date")
-                              (update :gender db/cast-type "user_gender")
-                              (update :phones #(db/cast-type (json/generate-string %) "json"))
-                              (update :status db/cast-type "user_status")
-                              (update :dob db/cast-type "date"))))))
+(s/defn create-user :- user-schema/User
+  [user :- user-schema/InputUser]
+  (insert users
+          (kc/values (-> (update user :password encrypt)
+                         (update :registration_date db/cast-type "date")
+                         (update :gender db/cast-type "user_gender")
+                         (update :phones #(db/cast-type (json/generate-string %) "json"))
+                         (update :status db/cast-type "user_status")
+                         (update :dob db/cast-type "date")))))
 
-(s/defn get-user-by-email :- (s/maybe user-schema/UserWithId)
+(s/defn get-user-by-email :- (s/maybe user-schema/User)
   [email :- s/Str]
   (first (sequence users-from-db-transducer
                    (select users
                            (kc/where {:email email})))))
 
-(s/defn get-users :- (s/maybe [user-schema/UserWithId]) []
+(s/defn get-users :- (s/maybe [user-schema/User]) []
   (sequence users-from-db-transducer (select users)))
 
-(s/defn get-users-vehicles :- s/Any
-  [user :- s/Str])
+(s/defn get-user-vehicles :- s/Any
+  [user :- s/Int]
+  (select vehicles (kc/where {:user_id user})))
 
 
-(s/defn create-vehicle :- s/Int
-  [vehicle :- s/Any user :- s/Str]
+(s/defn create-vehicle :- user-schema/Vehicle
+  [vehicle :- user-schema/InputVehicle user :- s/Str]
   (let [new-vehicle (insert vehicles vehicle)]
     (reset-tags "vehicles-count" (str user))))
 
-(s/defn create-vehicle-make :- s/Int
-  [vehicle-make :- s/Any]
-  (:id (insert vehicle-makes vehicle-make)))
+(s/defn create-vehicle-make :- user-schema/VehicleMake
+  [vehicle-make :- user-schema/VehicleMake]
+  (insert vehicle-makes vehicle-make))
 
-(s/defn create-vehicle-model :- s/Int
-  [vehicle-model :- s/Any]
-  (:id (insert vehicle-models vehicle-model)))
+(s/defn create-vehicle-model :- user-schema/VehicleModel
+  [vehicle-model :- user-schema/InputVehicleModel]
+  (insert vehicle-models vehicle-model))
 
-(s/defn create-vehicle-modification :- s/Int
-  [vehicle-modification :- s/Any]
-  (:id (insert vehicle_modifications vehicle_modification)))
+(s/defn create-vehicle-modification :- user-schema/VehicleModification
+  [vehicle-modification :- user-schema/InputVehicleModification]
+  (insert vehicle-modifications vehicle-modification))

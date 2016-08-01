@@ -2,6 +2,7 @@
   (:require [io.pedestal.http :as http]
             [io.pedestal.http.route :as route]
             [io.pedestal.http.body-params :as body-params]
+            [io.pedestal.http.route.definition :refer [defroutes]]
             [io.pedestal.interceptor :refer [interceptor]]
             [io.pedestal.interceptor.helpers :as interceptor
              :refer [definterceptor defon-request]]
@@ -15,6 +16,7 @@
             [users.db :as db]
             [users.kafka :as k]
             [utils.kafka-service :as service]
+            [clojure.java.io :as io]
             [utils.interceptors :refer [request-session restrict-unauthorized]]
             [utils.schema
              [users :as us]
@@ -32,7 +34,7 @@
   (handler
    ::users
    {:summary "api users"
-    :responses {200 {:body {:data [us/UserWithId]}}}
+    :responses {200 {:body {:data [us/User]}}}
     :parameters {:query-params {(s/optional-key :name) s/Str}}
     :operationId :users}
    (fn [request]
@@ -46,17 +48,18 @@
    ::create-user
    {:summary "create new user"
     :responses {201 {:body {:message s/Str}}}
-    :parameters {:body-params us/User}
+    :parameters {:body-params us/InputUser}
     :operationId :create-user}
    (fn [request]
      (db/create-user (:body-params request))
      {:status 201 :body {:message "user created"}})))
 
-(def login
+(def get-token
   (handler
-   ::token
+   ::get-token
    {:summary "login"
-    :responses {200 {:body {:message s/Str (s/optional-key :data) {:token s/Str :user s/Str}}}}
+    :responses {200 {:body {:message s/Str
+                            (s/optional-key :data) {:token s/Str :user s/Str}}}}
     :parameters {:body-params {:email s/Str :password s/Str}}
     :operationId :get-token}
    (fn [request]
@@ -64,7 +67,7 @@
            client (get-in request [:headers "user-agent"])
            user (db/get-user-by-email email)]
        (if (check password (:password user))
-         (-> (response {:message "success" :data {:token (session/create-token client {:email email})
+         (-> (response {:message "success" :data {:token (session/create-token client {:id (:id user)})
                                :user email}})
             (status 200)
             (assoc-in [:session :email] email))
@@ -74,7 +77,7 @@
   (handler
    ::users-with-commons
    {:summary "ms req"
-    :responses {200 {:body {:data {:users [us/UserWithId]
+    :responses {200 {:body {:data {:users [us/User]
                                    :commons cs/Settings}}}}
     :parameters {:query-params {(s/optional-key :name) s/Str}}
     :operationId :users-with-commons}
@@ -91,13 +94,49 @@
 (def create-vehicle
   (handler
    ::create-vehicle
-   {:summary "Create new vehicle"}))
+   {:summary "Create new vehicle"
+    :responses {201 {:body {:message s/Str}}}
+    :parameters {:body-params us/InputVehicle}
+    :operationId :create-vehicle}
+   (fn [{vehicle :body-params user :user}]
+     (db/create-vehicle vehicle user)
+     (-> (response {:message "Vehicle created"})
+         (status 201)))))
 
-(def create-vehicle-make ())
+(def create-vehicle-make
+  (handler
+   ::create-vehicle-make
+   {:summary "Create new vehicle make"
+    :responses {201 {:body {:message s/Str}}}
+    :parameters {:body-params us/InputVehicleMake}
+    :operationId :create-vehicle-make}
+   (fn [{vehicle-make :body-params}]
+     (-> (response {:message "Vehicle make created"})
+         (status 201)))))
 
-(def create-vehicle-model ())
+(def create-vehicle-model
+  (handler
+   ::create-vehicle-model
+   {:summary "Create new vehicle model"
+    :responses {201 {:body {:message s/Str}}}
+    :parameters {:body-params us/InputVehicleModel}
+    :operationId :create-vehicle-model}
+   (fn [{vehicle-model :body-params}]
+     (-> (response {:message "Vehicle model created"})
+         (status 201)))))
 
-(def create-vehicle-modification ())
+(def create-vehicle-modification
+  (handler
+   ::create-vehicle-modification
+   {:summary "Create new vehicle modification"
+    :responses {201 {:body {:message s/Str}}}
+    :parameters {:body-params us/InputVehicle}
+    :operationId :create-vehicle-modification}
+   (fn [{vehicle-modification :body-params}]
+     (-> (response {:message "Vehicle modification created"})
+         (status 201)))))
+
+
 
 (def token-auth
    (interceptor/before
@@ -111,12 +150,20 @@
                     (:user user)
                     nil))))))
 
+(defn login-page
+  [request]
+  (response (slurp (io/file (io/resource "login.html")))))
+
+(defn register-page
+  [request]
+  (response (slurp (io/file (io/resource "register.html")))))
+
 (def redis-connection {})
 
 (def session (middleware/session  {:store (redis-store redis-connection)}))
 
 (s/with-fn-validation
-  (api/defroutes routes
+  (api/defroutes api-routes
     {:info {:title       "Users"
             :description "Users api"
             :version     "2.0"}
@@ -136,14 +183,23 @@
        ["/users" ;^:interceptors [restrict-unauthorized]
         {:get users
          :post create-user}
+        ["/token" {:post get-token}]
         ["/commons" {:get users-with-commons}]]
-       ["/vehicles" {:post create-vehicle} ^:interceptors [restrict-unauthorized]
+       ["/vehicles" ^:interceptors [restrict-unauthorized] {:post create-vehicle}
         ["/models" {:post create-vehicle-model}]
         ["/makes" {:post create-vehicle-make}]
-        ["modifications" {:post create-vehicle-modification}]]
-       ["/login" {:post login}]
+        ["/modifications" {:post create-vehicle-modification}]]
+
        ["/swagger.json" {:get api/swagger-json}]
        ["/*resource" {:get api/swagger-ui}]]]]))
+
+(defroutes html-routes
+  [[["/" ^:interceptors [http/html-body]
+     ["/login" {:get login-page}]
+     ["/register" {:get register-page}]]]])
+
+(def routes (concat html-routes api-routes))
+
 
 ;; Consumed by users.server/create-server
 ;; See http/default-interceptors for additional options you can configure

@@ -37,7 +37,6 @@
     (doseq [key (apply set/intersection keys)]
       (wcar {} (car/del key)))))
 
-(reset-tags "vehicles-count" "tt")
 
 (defentity users
   (kc/table "users_tbl"))
@@ -65,11 +64,13 @@
   [user :- user-schema/InputUser]
   (insert users
           (kc/values (-> (update user :password encrypt)
-                         (update :registration_date db/cast-type "date")
-                         (update :gender db/cast-type "user_gender")
-                         (update :phones #(db/cast-type (json/generate-string %) "json"))
-                         (update :status db/cast-type "user_status")
-                         (update :dob db/cast-type "date")))))
+                         (assoc :registration_date (db/cast-type (new java.util.Date) "date"))
+                         (#(if (:gender %) (update % :gender db/cast-type "user_gender") %))
+                         (#(if (:phones %) (update % :phones (fn [phones] (db/cast-type (json/generate-string phones) "json"))) %))
+                         (assoc :status (db/cast-type "basic" "user_status"))
+                         (#(if (:dob %) (update % :dob db/cast-type "date") %))
+                         (assoc :enabled true)))))
+
 
 (s/defn get-user-by-email :- (s/maybe user-schema/User)
   [email :- s/Str]

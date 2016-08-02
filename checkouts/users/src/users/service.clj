@@ -8,7 +8,7 @@
              :refer [definterceptor defon-request]]
             [io.pedestal.http.ring-middlewares :as middleware]
             [clj-redis-session.core :refer [redis-store]]
-            [ring.util.response :refer [response status]]
+            [ring.util.response :refer [response status redirect]]
             [cheshire.core :as json]
             [environ.core :refer [env]]
             [buddy.hashers :refer [check]]
@@ -51,8 +51,8 @@
     :responses {201 {:body {:message s/Str}}}
     :parameters {:body-params us/InputUser}
     :operationId :create-user}
-   (fn [request]
-     (db/create-user (:body-params request))
+   (fn [{user :body-params}]
+     (db/create-user (dissoc user :password_conf))
      {:status 201 :body {:message "user created"}})))
 
 (def get-token
@@ -150,7 +150,9 @@
                   (if (= "success" (:status user))
                     (:user user)
                     nil))))))
-(defn fb-login [request] (response (social/fb-access-token  (-> request :params :code))))
+(defn fb-auth [request] (response (social/fb-auth (-> request :params :code))))
+
+(defn fb-login [request] (redirect (social/fb-url social/fb-service)))
 
 (defn login-page
   [request]
@@ -198,7 +200,8 @@
 (defroutes html-routes
   [[["/" ^:interceptors [http/html-body]
      ["/login" {:get login-page}
-      ["/fb" {:get fb-login}]]
+      ["/fb" {:get fb-login}
+       ["/auth" {:get fb-auth}]]]
      ["/register" {:get register-page}]]]])
 
 (def routes (concat html-routes api-routes))

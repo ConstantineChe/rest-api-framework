@@ -4,13 +4,13 @@
            [com.github.scribejava.core.model OAuthRequest Verb]))
 
 
-(def fb-resource-url "https://graph.facebook.com/v2.6/me")
+(def fb-resource-url "https://graph.facebook.com/me?fields=id,first_name,last_name,middle_name,birthday,email,picture" )
 
 (def fb-service
   (let [builder (doto (ServiceBuilder.)
                   (.apiKey "274772472896284")
                   (.apiSecret "3e5214972b192ceaea008e6fad221a19")
-                  (.callback "http://localhost/login/fb")
+                  (.callback "http://localhost/login/fb/auth")
                   )]
     (.build builder (FacebookApi/instance))))
 
@@ -23,7 +23,7 @@
                   )]
     (.build builder (VkontakteApi/instance))))
 
-(def google-service
+(defn google-service []
   (let [builder (doto (ServiceBuilder.)
                   (.apiKey "332296593369-rkjeql76as0omvr02qqvod86slp0m78o.apps.googleusercontent.com")
                   (.apiSecret "EPVJDDiLqBMQMlZXiNYClqlf")
@@ -36,10 +36,17 @@
 
 (def vk-url (.getAuthorizationUrl vk-service nil))
 
-(def fb-url (.getAuthorizationUrl fb-service))
+(defn fb-url [service] (.getAuthorizationUrl service))
 
-(defn fb-access-token
+(defn fb-auth
   "doc-string"
   [code]
-  (.getAccessToken fb-service code)
+  (let [service fb-service
+        at (.getAccessToken service code)
+        req (new OAuthRequest Verb/GET fb-resource-url service)
+        _ (.signRequest service at req)
+        res (.send req)
+        ]
+    (.getBody res)
+    )
   )

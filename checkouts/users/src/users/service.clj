@@ -150,9 +150,52 @@
                   (if (= "success" (:status user))
                     (:user user)
                     nil))))))
-(defn fb-auth [request] (response (social/fb-auth (-> request :params :code))))
+(defn fb-auth [request]
+  (let [data (json/parse-string (social/auth (-> request :params :code)
+                                             social/fb-service
+                                             social/fb-resource-url) true)
+        email (:email data (str "fb-" (:id data) "@test.cr"))
+        client (get-in request [:headers "user-agent"])]
+    (let [user (if-let [user (db/get-user-by-email email)] user
+                       (db/create-user {:name (:first_name data)
+                                        :surname (:last_name data)
+                                        :middlename (:middlename data)
+                                        :gender (:gender data)
+                                        :email email
+                                        :password "secret"}))]
+      (response (json/generate-string {:message "success" :data {:token (session/create-token client {:id (:id user)})
+                                             :user email}})))))
 
-(defn fb-login [request] (redirect (social/fb-url social/fb-service)))
+(defn vk-auth [request]
+  (let [data (first (:response (json/parse-string (social/auth (-> request :params :code)
+                                                               social/vk-service
+                                                               social/vk-resource-url) true)))
+        email (str "vk-" (:uid data) "@test.cr")
+        client (get-in request [:headers "user-agent"])]
+    (let [user (if-let [user (db/get-user-by-email email)] user
+                       (db/create-user {:name (:first_name data)
+                                        :surname (:last_name data)
+                                        :gender (case (:sex data) 1 "femal" 2 "male" nil)
+                                        :dob (apply str (interpose "-" (-> (:bdate data) (str/split #"\.") reverse )))
+                                        :email email
+                                        :password "secret"}))]
+      (response (json/generate-string {:message "success" :data {:token (session/create-token client {:id (:id user)})
+                                                                 :user email}})))))
+
+(defn google-auth [request]
+  (let [data (social/auth (-> request :params :code) social/google-service social/google-resource-url)
+        email (str "google" "@test.cr")
+        client (get-in request [:headers "user-agent"])]
+    (response (pr-str data))))
+
+(defn google-login [request]
+  (redirect (social/google-url social/google-service)))
+
+(defn fb-login [request]
+  (redirect (social/fb-url social/fb-service)))
+
+(defn vk-login [request]
+  (redirect (social/vk-url social/vk-service)))
 
 (defn login-page
   [request]
@@ -201,7 +244,11 @@
   [[["/" ^:interceptors [http/html-body]
      ["/login" {:get login-page}
       ["/fb" {:get fb-login}
-       ["/auth" {:get fb-auth}]]]
+       ["/auth" {:get fb-auth}]]
+      ["/vk" {:get vk-login}
+       ["/auth" {:get vk-auth}]]
+      ["/google" {:get google-login}
+       ["/auth" {:get google-auth}]]]
      ["/register" {:get register-page}]]]])
 
 (def routes (concat html-routes api-routes))

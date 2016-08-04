@@ -31,7 +31,7 @@
   (let [builder (doto (ServiceBuilder.)
                   (.apiKey "332296593369-rkjeql76as0omvr02qqvod86slp0m78o.apps.googleusercontent.com")
                   (.apiSecret "EPVJDDiLqBMQMlZXiNYClqlf")
-                  (.scope "https://www.googleapis.com/auth/plus.login")
+                  (.scope "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/plus.login")
                   (.callback "http://localhost/login/google/auth")
                   )]
     (.build builder (GoogleApi20/instance))))

@@ -182,11 +182,21 @@
       (response (json/generate-string {:message "success" :data {:token (session/create-token client {:id (:id user)})
                                                                  :user email}})))))
 
+
 (defn google-auth [request]
-  (let [data (social/auth (-> request :params :code) social/google-service social/google-resource-url)
-        email (str "google" "@test.cr")
+  (let [data (json/parse-string (social/auth (-> request :params :code)
+                                             social/google-service
+                                             social/google-resource-url) true)
+        email (:value (first (filter #(= "account" (:type %)) (:emails data))))
         client (get-in request [:headers "user-agent"])]
-    (response (pr-str data))))
+    (let [user (if-let [user (db/get-user-by-email email)] user
+                       (db/create-user {:name (-> data :name :givenName)
+                                        :surname (-> data :name :familyName)
+                                        :gender (:gender data)
+                                        :email email
+                                        :password "secret"}))]
+      (response (json/generate-string {:message "success" :data {:token (session/create-token client {:id (:id user)})
+                                                                 :user email}})))))
 
 (defn google-login [request]
   (redirect (social/google-url social/google-service)))

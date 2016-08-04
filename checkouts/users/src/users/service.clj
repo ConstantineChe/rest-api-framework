@@ -93,6 +93,25 @@
                              :commons (<!! chan)}})
            (status 200))))))
 
+(def refresh-token
+  (handler
+   ::refresh-token
+   {:summary "refresh authorization token"
+    :responses {200 {:body {:message s/Str
+                            (s/optional-key :data) {:token s/Str :user s/Str}}}}
+    :parameters {:body-params {:refresh-token s/Str}}
+    :operationId :refresh-token}
+   (fn [request]
+     (let [{:keys [email password]} (:body-params request)
+           client (get-in request [:headers "user-agent"])
+           user (db/get-user-by-email email)]
+       (if (check password (:password user))
+         (-> (response {:message "success" :data {:token (session/create-token client {:id (:id user)})
+                               :user email}})
+            (status 200)
+            (assoc-in [:session :email] email))
+         (response {:message "invalid username or password"}))))))
+
 (def create-vehicle
   (handler
    ::create-vehicle
@@ -144,7 +163,8 @@
    (interceptor/before
     ::token-auth
     (fn [{:keys [request] :as context}]
-      (let [[type token] (str/split (get-in request [:headers "authorization"]) #" ")
+      (let [[type token] (try (str/split (get-in request [:headers "authorization"]) #" ")
+                              (catch java.lang.Exception e [nil nil]))
             client (get-in request [:headers "user-agent"])
             user (if (and (= "Bearer" type) token)
                    (session/unsign-token client token))]
@@ -243,7 +263,8 @@
        ["/users" ;^:interceptors [restrict-unauthorized]
         {:get users
          :post create-user}
-        ["/token" {:post get-token}]
+        ["/token" {:post get-token}
+         ["/refresh" {:get refresh-token}]]
         ["/commons" {:get users-with-commons}]]
        ["/vehicles" ^:interceptors [restrict-unauthorized] {:post create-vehicle}
         ["/models" {:post create-vehicle-model}]

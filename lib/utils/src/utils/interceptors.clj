@@ -13,7 +13,8 @@
   (interceptor/before
    ::token-auth
    (fn [{:keys [request] :as context}]
-     (let [[type token] (str/split (get-in request [:headers "authorization"]) #" ")
+     (let [[type token] (try (str/split (get-in request [:headers "authorization"]) #" ")
+                             (catch java.lang.Exception e [nil nil]))
            client (get-in request [:headers "user-agent"])
            msg-key (keyword (str "auth-" token))
            chan (if token (service/get-chan! msg-key))

@@ -9,16 +9,18 @@
             [clojure.string :as str]
             [clojure.core.async :refer [<!!]]))
 
-(def token-auth
+(defn token-auth [service]
   (interceptor/before
    ::token-auth
    (fn [{:keys [request] :as context}]
-     (let [token (get-in request [:headers "auth-token"])
+     (let [[type token] (str/split (get-in request [:headers "authorization"]) #" ")
            client (get-in request [:headers "user-agent"])
            msg-key (keyword (str "auth-" token))
            chan (if token (service/get-chan! msg-key))
-           _ (if token (service/send-msg! msg-key "common"
+           _ (if (and (= "Bearer" type) token)
+               (service/send-msg! msg-key "users"
                                   {:type :request
+                                   :from service
                                    :operation :token
                                    :params {:token token
                                             :client client}}))

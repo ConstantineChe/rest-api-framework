@@ -17,7 +17,8 @@
             :consumer-config {:bootstrap.servers       [(:kafka-bootstrap-servers env "localhost:9091")]
                               :group.id                "users"
                               :auto.offset.reset       :earliest
-                              :enable.auto.commit      true}})
+                              :enable.auto.commit      true}
+            :consumer-subscriptions [{:topic :users :partition 0}]})
 
 (def http-port (:http-port env 8080))
 

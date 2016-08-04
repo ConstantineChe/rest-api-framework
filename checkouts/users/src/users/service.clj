@@ -86,8 +86,9 @@
      (let [sid (-> request :session-id keyword)
            sid (if sid sid :nil)
            chan (service/get-chan! sid)]
-       (service/send-msg! sid "users" {:type :request
-                                 :operation :settings})
+       (service/send-msg! sid "common" {:type :request
+                                       :from "users"
+                                       :operation :settings})
        (-> (response {:data {:users (db/get-users)
                              :commons (<!! chan)}})
            (status 200))))))
@@ -143,9 +144,10 @@
    (interceptor/before
     ::token-auth
     (fn [{:keys [request] :as context}]
-      (let [token (get-in request [:headers "auth-token"])
+      (let [[type token] (str/split (get-in request [:headers "authorization"]) #" ")
             client (get-in request [:headers "user-agent"])
-            user (if token (session/unsign-token client token))]
+            user (if (and (= "Bearer" type) token)
+                   (session/unsign-token client token))]
         (assoc-in context [:request :user]
                   (if (= "success" (:status user))
                     (:user user)
@@ -176,7 +178,8 @@
                        (db/create-user {:name (:first_name data)
                                         :surname (:last_name data)
                                         :gender (case (:sex data) 1 "femal" 2 "male" nil)
-                                        :dob (apply str (interpose "-" (-> (:bdate data) (str/split #"\.") reverse )))
+                                        :dob (if (= 12 (count (:bdate data)))
+                                                 (apply str (interpose "-" (-> (:bdate data) (str/split #"\.") reverse ))))
                                         :email email
                                         :password "secret"}))]
       (response (json/generate-string {:message "success" :data {:token (session/create-token client {:id (:id user)})

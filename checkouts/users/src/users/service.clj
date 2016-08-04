@@ -68,7 +68,7 @@
            client (get-in request [:headers "user-agent"])
            user (db/get-user-by-email email)]
        (if (check password (:password user))
-         (-> (response {:message "success" :data {:token (session/create-token client {:id (:id user)})
+         (-> (response {:message "success" :data {:token (session/create-auth-token client {:id (:id user)})
                                :user email}})
             (status 200)
             (assoc-in [:session :email] email))
@@ -98,19 +98,18 @@
    ::refresh-token
    {:summary "refresh authorization token"
     :responses {200 {:body {:message s/Str
-                            (s/optional-key :data) {:token s/Str :user s/Str}}}}
+                            (s/optional-key :data) {:token s/Str}}}}
     :parameters {:body-params {:refresh-token s/Str}}
     :operationId :refresh-token}
    (fn [request]
-     (let [{:keys [email password]} (:body-params request)
-           client (get-in request [:headers "user-agent"])
-           user (db/get-user-by-email email)]
-       (if (check password (:password user))
-         (-> (response {:message "success" :data {:token (session/create-token client {:id (:id user)})
-                               :user email}})
-            (status 200)
-            (assoc-in [:session :email] email))
-         (response {:message "invalid username or password"}))))))
+     (let [[type auth-token] (try (str/split (get-in request [:headers "authorization"]) #" ")
+                                  (catch java.lang.Exception e [nil nil]))
+           refresh-token (-> request :body-params :refresh-token)
+           client (get-in request [:headers "user-agent"])]
+       (if-let [new-auth-token (session/refresh-token client refresh-token auth-token)]
+         (-> (response {:message "success" :data {:token new-auth-token}})
+             (status 200))
+         (response {:message "invalid refresh or auth token"}))))))
 
 (def create-vehicle
   (handler
@@ -172,6 +171,9 @@
                   (if (= "success" (:status user))
                     (:user user)
                     nil))))))
+
+;;========================= Site route handlers ============================
+
 (defn fb-auth [request]
   (let [data (json/parse-string (social/auth (-> request :params :code)
                                              social/fb-service
@@ -185,8 +187,11 @@
                                         :gender (:gender data)
                                         :email email
                                         :password "secret"}))]
-      (response (json/generate-string {:message "success" :data {:token (session/create-token client {:id (:id user)})
-                                             :user email}})))))
+      (response (json/generate-string
+                 {:message "success"
+                  :data {:auth-token (session/create-auth-token client {:id (:id user)})
+                         :refresh-token (session/create-refresh-token client user)
+                         :user email}})))))
 
 (defn vk-auth [request]
   (let [data (first (:response (json/parse-string (social/auth (-> request :params :code)
@@ -202,8 +207,11 @@
                                                  (apply str (interpose "-" (-> (:bdate data) (str/split #"\.") reverse ))))
                                         :email email
                                         :password "secret"}))]
-      (response (json/generate-string {:message "success" :data {:token (session/create-token client {:id (:id user)})
-                                                                 :user email}})))))
+      (response (json/generate-string
+                 {:message "success"
+                  :data {:auth-token (session/create-auth-token client {:id (:id user)})
+                         :refresh-token (session/create-refresh-token client user)
+                         :user email}})))))
 
 
 (defn google-auth [request]
@@ -218,8 +226,11 @@
                                         :gender (:gender data)
                                         :email email
                                         :password "secret"}))]
-      (response (json/generate-string {:message "success" :data {:token (session/create-token client {:id (:id user)})
-                                                                 :user email}})))))
+      (response (json/generate-string
+                 {:message "success"
+                  :data {:auth-token (session/create-auth-token client {:id (:id user)})
+                         :refresh-token (session/create-refresh-token client user)
+                         :user email}})))))
 
 (defn google-login [request]
   (redirect (social/google-url social/google-service)))
@@ -264,7 +275,7 @@
         {:get users
          :post create-user}
         ["/token" {:post get-token}
-         ["/refresh" {:get refresh-token}]]
+         ["/refresh" {:post refresh-token}]]
         ["/commons" {:get users-with-commons}]]
        ["/vehicles" ^:interceptors [restrict-unauthorized] {:post create-vehicle}
         ["/models" {:post create-vehicle-model}]

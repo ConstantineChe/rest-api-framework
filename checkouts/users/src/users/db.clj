@@ -9,9 +9,9 @@
             [clj-time.format :as f]
             [clj-time.core :as t]
             [clojure.string :as str]
-            [taoensso.carmine :as car :refer [wcar]]
             [clojure.set :as set]
             [users.config :as config]
+            [utils.cache :as cache]
             [buddy.hashers :refer [encrypt]]))
 
 (def db-connection
@@ -29,12 +29,6 @@
   (let [[year month day] (map #(Integer. %) (str/split (str date) #"-"))]
          (f/unparse sql-format (t/to-time-zone (t/date-time year month day)
                                                (t/time-zone-for-offset 2)))))
-
-(defn reset-tags [& tags]
-  (let [keys (for [tag tags]
-               (into #{} (wcar config/redis-connection (car/keys (str "*:" tag ":*")))))]
-    (doseq [key (apply set/intersection keys)]
-      (wcar config/redis-connection (car/del key)))))
 
 (defn update-value [coll k f & args]
   (if (k coll)
@@ -94,7 +88,7 @@
 (s/defn create-vehicle :- user-schema/Vehicle
   [vehicle :- user-schema/InputVehicle user :- s/Int]
   (let [new-vehicle (insert vehicles vehicle)]
-    (reset-tags "vehicles-count" (str user))
+    (cache/reset-tags "vehicles-count" (str user))
     new-vehicle))
 
 (s/defn create-vehicle-make :- user-schema/VehicleMake

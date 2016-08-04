@@ -18,7 +18,12 @@
 (defmethod process-request :token [{:keys [message sid]}]
   (let [{:keys [client token]} (:params message)]
     (service/send-msg! sid (:from message) {:type :response
-                               :data (session/unsign-token client token)})))
+                                            :data (session/unsign-token client token)})))
+
+(defmethod process-request :refresh-token [{:keys [message sid]}]
+  (let [{:keys [client auth-token refresh-token]} (:params message)]
+    (service/send-msg! sid (:from message) {:type :response
+                                            :data (session/refresh-token client refresh-token auth-token)})))
 
 (defmethod process-request :default [msg]
   (println "Invalid request operation: " (-> msg :message :operation)))

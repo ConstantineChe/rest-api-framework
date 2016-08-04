@@ -1,19 +1,13 @@
 (ns common.kafka
   (:require [utils.kafka-service :as service]
             [common.db :as db]
-            [environ.core :refer [env]]))
-
-(def bootstrap-servers (if-let [serv (:kafka-server env)] serv "localhost:9091"))
+            [common.config :as config]))
 
 (defn producer []
-  (service/producer {:bootstrap.servers [bootstrap-servers]
-                     :client.id "common"}))
+  (service/producer (:producer-config config/kafka)))
 
 (defn consumer []
-  (service/consumer {:bootstrap.servers [bootstrap-servers]
-                     :group.id "common"
-                     :auto.offset.reset :earliest
-                     :enable.auto.commit true}))
+  (service/consumer (:consumer-config config/kafka)))
 
 (defmulti process-request (comp :operation :message))
 
@@ -25,5 +19,5 @@
   (println "Invalid request operation: " (-> msg :message :operation)))
 
 
-(service/start-consumer! (consumer) [{:topic :common :partition 0}] process-request)
+(service/start-consumer! (consumer) (:consumer-subscriptions config/kafka) process-request)
 (service/start-producer! (producer))

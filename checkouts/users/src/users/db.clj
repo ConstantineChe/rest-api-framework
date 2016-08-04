@@ -11,12 +11,11 @@
             [clojure.string :as str]
             [taoensso.carmine :as car :refer [wcar]]
             [clojure.set :as set]
+            [users.config :as config]
             [buddy.hashers :refer [encrypt]]))
 
 (def db-connection
-  (db/db-connection {:db (or (:db env) (:users-db env) "carbook_users")
-                     :username (:db-user env)
-                     :password (:db-password env)}))
+  (db/db-connection config/db-connection))
 
 (def migrate (db/migrate (db/load-config db-connection)))
 
@@ -33,9 +32,9 @@
 
 (defn reset-tags [& tags]
   (let [keys (for [tag tags]
-               (into #{} (wcar {} (car/keys (str "*:" tag ":*")))))]
+               (into #{} (wcar config/redis-connection (car/keys (str "*:" tag ":*")))))]
     (doseq [key (apply set/intersection keys)]
-      (wcar {} (car/del key)))))
+      (wcar config/redis-connection (car/del key)))))
 
 (defn update-value [coll k f & args]
   (if (k coll)

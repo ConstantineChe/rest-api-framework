@@ -1,20 +1,15 @@
 (ns users.kafka
   (:require [utils.kafka-service :as service]
             [users.session :as session]
-            [environ.core :refer [env]]))
+            [environ.core :refer [env]]
+            [users.config :as config]))
 
-
-(def bootstrap-servers (if-let [serv (:kafka-server env)] serv "localhost:9091"))
 
 (defn producer []
-  (service/producer {:bootstrap.servers [bootstrap-servers]
-                     :client.id "users"}))
+  (service/producer (:producer-config config/kafka)))
 
 (defn consumer []
-  (service/consumer {:bootstrap.servers       [bootstrap-servers]
-                     :group.id                "users"
-                     :auto.offset.reset       :earliest
-                     :enable.auto.commit      true}))
+  (service/consumer (:consumer-config config/kafka)))
 
 
 
@@ -30,5 +25,5 @@
 
 
 
-(service/start-consumer! (consumer) [{:topic :common :partition 0}] process-request)
+(service/start-consumer! (consumer) (:consumer-subscriptions config/kafka) process-request)
 (service/start-producer! (producer))

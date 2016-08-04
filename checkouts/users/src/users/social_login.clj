@@ -1,4 +1,5 @@
 (ns users.social-login
+  (:require [users.config :refer [vk-config fb-config google-config]])
   (:import [com.github.scribejava.core.builder ServiceBuilder]
            [com.github.scribejava.apis FacebookApi VkontakteApi GoogleApi20 TwitterApi]
            [com.github.scribejava.core.model OAuthRequest Verb]))
@@ -20,10 +21,10 @@
 
 (def vk-service
   (let [builder (doto (ServiceBuilder.)
-                  (.apiKey "5573637")
-                  (.apiSecret "unksmyfNASsW8G7PtB0D")
-                  (.scope "notify,offline,email")
-                  (.callback "http://localhost/login/vk/auth")
+                  (.apiKey (:api-key vk-config))
+                  (.apiSecret (:api-secret vk-config))
+                  (.scope (:scope vk-config))
+                  (.callback (:callback vk-config))
                   )]
     (.build builder (VkontakteApi/instance))))
 

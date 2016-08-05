@@ -60,7 +60,9 @@
    ::get-token
    {:summary "login"
     :responses {200 {:body {:message s/Str
-                            (s/optional-key :data) {:token s/Str :user s/Str}}}}
+                            (s/optional-key :data) {:auth-token s/Str
+                                                    :refresh-token s/Str
+                                                    :user s/Str}}}}
     :parameters {:body-params {:email s/Str :password s/Str}}
     :operationId :get-token}
    (fn [request]
@@ -68,7 +70,9 @@
            client (get-in request [:headers "user-agent"])
            user (db/get-user-by-email email)]
        (if (check password (:password user))
-         (-> (response {:message "success" :data {:token (session/create-auth-token client {:id (:id user)})
+         (-> (response {:message "success"
+                        :data {:auth-token (session/create-auth-token client user)
+                               :refresh-token (session/create-refresh-token client user)
                                :user email}})
             (status 200)
             (assoc-in [:session :email] email))
@@ -189,7 +193,7 @@
                                         :password "secret"}))]
       (response (json/generate-string
                  {:message "success"
-                  :data {:auth-token (session/create-auth-token client {:id (:id user)})
+                  :data {:auth-token (session/create-auth-token client user)
                          :refresh-token (session/create-refresh-token client user)
                          :user email}})))))
 
@@ -209,7 +213,7 @@
                                         :password "secret"}))]
       (response (json/generate-string
                  {:message "success"
-                  :data {:auth-token (session/create-auth-token client {:id (:id user)})
+                  :data {:auth-token (session/create-auth-token client user)
                          :refresh-token (session/create-refresh-token client user)
                          :user email}})))))
 
@@ -228,7 +232,7 @@
                                         :password "secret"}))]
       (response (json/generate-string
                  {:message "success"
-                  :data {:auth-token (session/create-auth-token client {:id (:id user)})
+                  :data {:auth-token (session/create-auth-token client user)
                          :refresh-token (session/create-refresh-token client user)
                          :user email}})))))
 

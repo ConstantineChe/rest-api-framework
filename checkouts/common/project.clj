@@ -13,7 +13,7 @@
                  [clj-redis-session "2.1.0"]
                  [environ "1.0.3"]
                  [midje "1.8.3"]
-                 [utils "0.3.0-SNAPSHOT"]
+                 [utils "0.3.1-SNAPSHOT"]
                  [ch.qos.logback/logback-classic "1.1.7" :exclusions [org.slf4j/slf4j-api]]
                  [org.slf4j/jul-to-slf4j "1.7.21"]
                  [org.slf4j/jcl-over-slf4j "1.7.21"]

@@ -1,4 +1,4 @@
-(defproject users "0.0.1-SNAPSHOT"
+(defproject vehicles "0.0.1-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -14,11 +14,6 @@
                  [prismatic/schema "1.1.2"]
                  [environ "1.0.3"]
                  [midje "1.8.3"]
-                 [buddy/buddy-auth "1.1.0"]
-                 [buddy/buddy-sign "1.1.0"]
-                 [buddy/buddy-hashers "0.14.0"]
-                 [com.github.scribejava/scribejava-apis "3.0.0"]
-                 [com.github.scribejava/scribejava-core "3.0.0"]
                  [ch.qos.logback/logback-classic "1.1.7" :exclusions [org.slf4j/slf4j-api]]
                  [org.slf4j/jul-to-slf4j "1.7.21"]
                  [org.slf4j/jcl-over-slf4j "1.7.21"]
@@ -30,16 +25,17 @@
             [lein-midje "3.0.0"]
             [lein-environ "1.0.3"]
             [lein-localrepo "0.5.3"]]
-  :aliases {"migrate"  ["run" "-m" "users.db/migrate"]
-            "rollback" ["run" "-m" "users.db/rollback"]
+  :aliases {"migrate"  ["run" "-m" "vehicles.db/migrate"]
+            "rollback" ["run" "-m" "vehicles.db/rollback"]
             "autotest" ["with-profile" "test" "midje" ":autotest"]}
-  :profiles {:dev {:aliases {"run-dev" ["trampoline" "run" "-m" "users.server/run-dev"]}
+  :profiles {:dev {:aliases {"run-dev" ["trampoline" "run" "-m" "vehicles.server/run-dev"]}
                    :dependencies [[io.pedestal/pedestal.service-tools "0.5.0" :exclusions [org.clojure/tools.reader]]]
                    :env {:kafka-server "localhost:9091"
-                         :db "carbook_users"}}
+                         :db "carbook_vehicles"}
+                   :aot :all}
              :test {:env {:kafka-server "localhost:9091"
-                          :db "carbook_users_test"}
+                          :db "carbook_vehicles_test"}
                     :aot :all
                     :dependencies [[io.pedestal/pedestal.service-tools "0.5.0" :exclusions [org.clojure/tools.reader]]]}
-             :uberjar {:aot [users.server users.kafka]}}
-  :main ^{:skip-aot true} users.server)
+             :uberjar {:aot [vehicles.server vehicles.kafka]}}
+  :main ^{:skip-aot true} vehicles.server)

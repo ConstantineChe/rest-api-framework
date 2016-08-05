@@ -39,18 +39,6 @@
 (defentity users
   (kc/table "users_tbl"))
 
-(defentity vehicles
-  (kc/table "vehicles_tbl"))
-
-(defentity vehicle-makes
-  (kc/table "vehicle_makes_tbl"))
-
-(defentity vehicle-models
-  (kc/table "vehicle_models_tbl"))
-
-(defentity vehicle-modifications
-  (kc/table "vehicle_modifications_tbl"))
-
 (def users-from-db-transducer
   (map (fn [user] (-> (update-value user :phones #(json/parse-string (.getValue %) true))
                      (update-value :registration_date transform-date)
@@ -73,32 +61,11 @@
 
 (s/defn get-user-by-email :- (s/maybe user-schema/User)
   [email :- s/Str]
-  (first (sequence users-from-db-transducer
+  (first (sequence  users-from-db-transducer
                    (select users
                            (kc/where {:email email})))))
 
 (s/defn get-users :- (s/maybe [user-schema/User]) []
-  (sequence users-from-db-transducer (select users)))
-
-(s/defn get-user-vehicles :- [user-schema/Vehicle]
-  [user :- s/Int]
-  (select vehicles (kc/where {:user_id user})))
-
-
-(s/defn create-vehicle :- user-schema/Vehicle
-  [vehicle :- user-schema/InputVehicle user :- s/Int]
-  (let [new-vehicle (insert vehicles vehicle)]
-    (cache/reset-tags "vehicles-count" (str user))
-    new-vehicle))
-
-(s/defn create-vehicle-make :- user-schema/VehicleMake
-  [vehicle-make :- user-schema/VehicleMake]
-  (insert vehicle-makes vehicle-make))
-
-(s/defn create-vehicle-model :- user-schema/VehicleModel
-  [vehicle-model :- user-schema/InputVehicleModel]
-  (insert vehicle-models vehicle-model))
-
-(s/defn create-vehicle-modification :- user-schema/VehicleModification
-  [vehicle-modification :- user-schema/InputVehicleModification]
-  (insert vehicle-modifications vehicle-modification))
+  (sequence (comp (map #(dissoc % :password))
+                  users-from-db-transducer)
+            (select users)))

@@ -1,11 +1,6 @@
 (ns utils.schema.users
-  (:require [schema.core :as s]))
-
-(defn opt [key]
-  (s/optional-key key))
-
-(defn req [key]
-  (s/required-key key))
+  (:require [schema.core :as s]
+            [utils.schema :refer [opt req]]))
 
 (s/defschema InputUser
   {(req :name) s/Str
@@ -33,53 +28,5 @@
    (opt :dob) (s/maybe s/Str)
    (req :enabled) s/Bool})
 
-(s/defschema Vehicle
-  {(req :id) s/Int
-   (req :make_id) s/Int
-   (req :model_id) s/Int
-   (req :year) s/Int
-   (req :modification_id) s/Int
-   (req :registration_number) s/Str
-   (req :vin_code) s/Str
-   (req :enabled) s/Bool})
-
-(s/defschema InputVehicle
-  {(req :make_id) s/Int
-   (req :model_id) s/Int
-   (req :year) s/Int
-   (req :modification_id) s/Int
-   (req :registration_number) s/Str
-   (req :vin_code) s/Str
-   (req :enabled) s/Bool})
-
-(s/defschema InputVehicleMake
-  {(req :name) s/Str})
-
-(s/defschema VehicleMake
-  {(req :id) s/Int
-   (req :name) s/Str
-   (req :enabled) s/Bool})
-
-(s/defschema InputVehicleModel
-  {(req :name) s/Str
-   (req :make_id) s/Int})
-
-(s/defschema VehicleModel
-  {(req :id) s/Int
-   (req :name) s/Str
-   (req :make_id) s/Int
-   (req :enabled) s/Bool})
-
-(s/defschema InputVehicleModification
-  {(req :name) s/Str
-   (req :made_from) s/Str
-   (req :made_until) s/Str
-   (req :midel_id) s/Int})
-
-(s/defschema VehicleModification
-  {(req :id) s/Int
-   (req :name) s/Str
-   (req :made_from) s/Str
-   (req :made_until) s/Str
-   (req :midel_id) s/Int
-   (req :enabled) s/Str})
+(s/defschema UserWithoutPassword
+  (dissoc User :password))

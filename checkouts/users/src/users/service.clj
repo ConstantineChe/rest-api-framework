@@ -35,13 +35,12 @@
   (handler
    ::users
    {:summary "api users"
-    :responses {200 {:body {:data [us/User]}}}
-    :parameters {:query-params {(s/optional-key :name) s/Str}}
+    :responses {200 {:body {:data [us/UserWithoutPassword]}}}
+    :parameters {}
     :operationId :users}
    (fn [request]
      (-> (response {:data (db/get-users)})
-         (status 200)
-         (assoc-in [:session :name] (-> request :query-params :name))))))
+         (status 200)))))
 
 
 (def create-user
@@ -58,7 +57,7 @@
 (def get-token
   (handler
    ::get-token
-   {:summary "login"
+   {:summary "get authorization token"
     :responses {200 {:body {:message s/Str
                             (s/optional-key :data) {:auth-token s/Str
                                                     :refresh-token s/Str
@@ -114,53 +113,6 @@
          (-> (response {:message "success" :data {:token new-auth-token}})
              (status 200))
          (response {:message "invalid refresh or auth token"}))))))
-
-(def create-vehicle
-  (handler
-   ::create-vehicle
-   {:summary "Create new vehicle"
-    :responses {201 {:body {:message s/Str}}}
-    :parameters {:body-params us/InputVehicle}
-    :operationId :create-vehicle}
-   (fn [{vehicle :body-params user :user}]
-     (db/create-vehicle vehicle user)
-     (-> (response {:message "Vehicle created"})
-         (status 201)))))
-
-(def create-vehicle-make
-  (handler
-   ::create-vehicle-make
-   {:summary "Create new vehicle make"
-    :responses {201 {:body {:message s/Str}}}
-    :parameters {:body-params us/InputVehicleMake}
-    :operationId :create-vehicle-make}
-   (fn [{vehicle-make :body-params}]
-     (-> (response {:message "Vehicle make created"})
-         (status 201)))))
-
-(def create-vehicle-model
-  (handler
-   ::create-vehicle-model
-   {:summary "Create new vehicle model"
-    :responses {201 {:body {:message s/Str}}}
-    :parameters {:body-params us/InputVehicleModel}
-    :operationId :create-vehicle-model}
-   (fn [{vehicle-model :body-params}]
-     (-> (response {:message "Vehicle model created"})
-         (status 201)))))
-
-(def create-vehicle-modification
-  (handler
-   ::create-vehicle-modification
-   {:summary "Create new vehicle modification"
-    :responses {201 {:body {:message s/Str}}}
-    :parameters {:body-params us/InputVehicle}
-    :operationId :create-vehicle-modification}
-   (fn [{vehicle-modification :body-params}]
-     (-> (response {:message "Vehicle modification created"})
-         (status 201)))))
-
-
 
 (def token-auth
    (interceptor/before
@@ -281,11 +233,6 @@
         ["/token" {:post get-token}
          ["/refresh" {:post refresh-token}]]
         ["/commons" {:get users-with-commons}]]
-       ["/vehicles" ^:interceptors [restrict-unauthorized] {:post create-vehicle}
-        ["/models" {:post create-vehicle-model}]
-        ["/makes" {:post create-vehicle-make}]
-        ["/modifications" {:post create-vehicle-modification}]]
-
        ["/swagger.json" {:get api/swagger-json}]
        ["/*resource" {:get api/swagger-ui}]]]]))
 

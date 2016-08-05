@@ -6,8 +6,10 @@ WORKDIR /app
 
 ENV KAFKA_SERVER kafka:9092
 
-RUN ["lein", "modules", "install"]
+RUN cd lib/utils && lein install
+
+RUN lein modules install
 
 EXPOSE 8080
 
-CMD ["lein", "run", "dev"]
+CMD lein run dev

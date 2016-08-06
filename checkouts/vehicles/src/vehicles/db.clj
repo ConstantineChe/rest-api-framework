@@ -53,22 +53,23 @@
 
 (s/defn create-vehicle :- vehicles-schema/Vehicle
   [vehicle :- vehicles-schema/InputVehicle user :- s/Int]
-  (let [new-vehicle (insert vehicles (assoc vehicle :enabled true))]
+  (let [new-vehicle (insert vehicles (kc/values (assoc vehicle :enabled true)))]
     (cache/reset-tags "vehicles-count" (str user))
     new-vehicle))
 
 (s/defn create-vehicle-make :- vehicles-schema/VehicleMake
   [vehicle-make :- vehicles-schema/InputVehicleMake]
-  (insert vehicle-makes (assoc vehicle-make :enabled true)))
+  (insert vehicle-makes (kc/values (assoc vehicle-make :enabled true))))
 
 (s/defn create-vehicle-model :- vehicles-schema/VehicleModel
   [vehicle-model :- vehicles-schema/InputVehicleModel]
-  (insert vehicle-models (assoc vehicle-model :enabled true)))
+  (insert vehicle-models (kc/values (assoc vehicle-model :enabled true))))
 
 (s/defn create-vehicle-modification :- vehicles-schema/VehicleModification
   [vehicle-modification :- vehicles-schema/InputVehicleModification]
-  (-> (insert vehicle-modifications (-> (assoc vehicle-modification :enabled true)
-                                        (update :made_from util/cast-type "date")
-                                        (update :made_until util/cast-type "date")))
+  (-> (insert vehicle-modifications
+              (kc/values (-> (assoc vehicle-modification :enabled true)
+                             (update :made_from util/cast-type "date")
+                             (update :made_until util/cast-type "date"))))
       (update :made_from transform-date)
       (update :made_until transform-date)))

@@ -11,7 +11,7 @@
 (defn run-dev
   "The entry-point for 'lein run-dev'"
   [& [opts :as args]]
-  (println "\nCreating your [DEV] users service server...")
+  (println "\nCreating your [DEV] vehicles service server...")
   (-> service/service ;; start with production configuration
       (merge opts
              {:env :dev
@@ -33,7 +33,7 @@
 (defn -main
   "The entry-point for 'lein run'"
   [& args]
-  (println "\nCreating your server...")
+  (println "\nCreating your vehicles service server...")
   (server/start runnable-service))
 
 ;; If you package the service up as a WAR,

@@ -51,5 +51,5 @@
    (req :name) s/Str
    (req :made_from) s/Str
    (req :made_until) s/Str
-   (req :midel_id) s/Int
-   (req :enabled) s/Str})
+   (req :model_id) s/Int
+   (req :enabled) s/Bool})

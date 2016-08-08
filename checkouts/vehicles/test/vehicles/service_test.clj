@@ -3,7 +3,7 @@
             [midje.sweet :refer :all]
             [io.pedestal.test :refer :all]
             [io.pedestal.http :as bootstrap]
-            [utils.test :refer [exec-raw init-db! clear-tables!]]
+            [utils.test :refer [init-db! clear-tables!]]
             [ragtime.repl :as repl]
             [vehicles.db :as db]
             [utils.db :as dbu]
@@ -85,7 +85,8 @@
          (fact "api user can create vehicles"
 
                (json/parse-string
-                (:body (api-request :post "/vehicles" {:vehicle {:make_id 1
+                (:body (api-request :post "/vehicles" {:vehicle {:user_id 1
+                                                                 :make_id 1
                                                                  :model_id 1
                                                                  :modification_id 1
                                                                  :year 1999
@@ -97,6 +98,7 @@
               {:message "Vehicle created"
                :data {:enabled true
                       :id 1
+                      :user_id 1
                       :make_id 1
                       :model_id 1
                       :modification_id 1

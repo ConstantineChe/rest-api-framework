@@ -1,7 +1,7 @@
 (ns vehicles.config
   (:require [environ.core :refer [env]]))
 
-(def db-connection {:db (or (:db env) (:users-db env) "carbook_users")
+(def db-connection {:db (or (:db env) (:vehicles-db env) "carbook_vehicles")
                      :username (:db-user env)
                      :password (:db-password env)})
 

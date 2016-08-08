@@ -97,7 +97,7 @@
              :externalDocs {:description "Find out more"
                             :url         "http://swagger.io"}}]}
     [[["/" ^:interceptors [session
-                           token-auth
+                           (token-auth "vehicles" k/producer-chan)
                            ;restrict-unauthorized
                            api/error-responses
                            (api/negotiate-response)
@@ -106,7 +106,7 @@
                            (api/coerce-request)
                            (api/validate-response)
                            (api/doc {:tags ["vehicles"]})]
-       ["/vehicles" ^:interceptors [] {:post create-vehicle}
+       ["/vehicles"  {:post create-vehicle}
         ["/models" {:post create-vehicle-model}]
         ["/makes" {:post create-vehicle-make}]
         ["/modifications" {:post create-vehicle-modification}]]

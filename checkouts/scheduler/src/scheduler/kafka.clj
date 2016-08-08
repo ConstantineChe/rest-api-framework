@@ -1,7 +1,9 @@
-(ns common.kafka
+(ns scheduler.kafka
   (:require [utils.kafka-service :as service]
-            [common.db :as db]
-            [common.config :as config]
+            [scheduler.db :as db]
+            [environ.core :refer [env]]
+            [scheduler.config :as config]
+            [schema.core :as s]
             [clojure.core.async :as async]))
 
 (defn producer []
@@ -16,12 +18,9 @@
 
 (defmulti process-request (comp :operation :message))
 
-(defmethod process-request :settings [{:keys [message sid]}]
-  (produce! sid (:from message) {:type :response
-                             :data (db/get-settings)}))
-
 (defmethod process-request :default [msg]
   (println "Invalid request operation: " (-> msg :message :operation)))
+
 
 
 (service/start-consumer! (consumer) (:consumer-subscriptions config/kafka) process-request)

@@ -32,8 +32,6 @@
                             defaults
                             )))
 
-(def producer-chan (async/chan))
-
 (defonce sid-chans (atom {}))
 
 
@@ -43,7 +41,7 @@
   (sid @sid-chans))
 
 (defn process-message [handler {:keys [message sid] :as msg}]
-  (prn "from common: " msg)
+  (println "<<<<<<<<<<<<<" (:from message) "<KAFKA: " msg)
     (case (:type message)
     :request (handler msg)
     :response (if-let [ch (sid @sid-chans)] (>!! ch (:data message)) (println "No chan to response"))
@@ -51,7 +49,8 @@
     )
 
 
-(defn send-msg! [session topic msg]
+(defn send-msg! [producer-chan session topic msg]
+  (println ">>>>>>>>>>>>CHAN>SEND: " session topic msg)
   (>!! producer-chan {:topic topic :partition 0 :key session :value msg}))
 
 (defn start-consumer! [consumer partitions handler]
@@ -62,15 +61,15 @@
       (while true
         (let [cr (poll! c)]
           (doseq [msg (into [] cr)]
-            (prn msg)
+            (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
             (process-message handler {:message (:value msg)
                                       :sid (:key msg)})))
         ))
     ))
 
-(defn start-producer! [producer]
+(defn start-producer! [producer producer-chan]
   (async/thread
     (with-open [p producer]
       (while true
-        (prn (send-sync! p (<!! producer-chan))))
+        (println ">>>>>>>>>>>KAFKA>SEND: " (send-sync! p (<!! producer-chan))))
       )))

@@ -1,7 +1,7 @@
 (ns vehicles.db
   (:require [utils.db :as util]
             [korma.db :as kdb]
-            [korma.core :as kc :refer [select insert defentity]]
+            [korma.core :as kc :refer [select insert delete defentity]]
             [schema.core :as s]
             [cheshire.core :as json]
             [utils.schema.vehicles :as vehicles-schema]
@@ -35,15 +35,19 @@
 
 
 (defentity vehicles
+  (kc/database db)
   (kc/table "vehicles_tbl"))
 
 (defentity vehicle-makes
+  (kc/database db)
   (kc/table "vehicle_makes_tbl"))
 
 (defentity vehicle-models
+  (kc/database db)
   (kc/table "vehicle_models_tbl"))
 
 (defentity vehicle-modifications
+  (kc/database db)
   (kc/table "vehicle_modifications_tbl"))
 
 (s/defn get-user-vehicles :- [vehicles-schema/Vehicle]
@@ -53,9 +57,20 @@
 
 (s/defn create-vehicle :- vehicles-schema/Vehicle
   [vehicle :- vehicles-schema/InputVehicle user :- s/Int]
-  (let [new-vehicle (insert vehicles (kc/values (assoc vehicle :enabled true)))]
+  (let [new-vehicle (insert vehicles (kc/values (-> (assoc vehicle :enabled true)
+                                                    (assoc :user_id user))))]
     (cache/reset-tags "vehicles-count" (str user))
     new-vehicle))
+
+(s/defn delete-vehicle :- {:message :- s/Str :id :- s/Int}
+  [vehicle-id :- s/Int user-id :- s/Int]
+  (if (= 1 (delete vehicles (kc/where {:id vehicle-id :user_id user-id})))
+    {:message "deleted" :id vehicle-id :status "success"}
+    {:message (str "User has no vehicle with id " vehicle-id) :id vehicle-id :status "failed"}))
+
+(s/defn get-users-vehicle :- (s/maybe vehicles-schema/Vehicle)
+  [vehicle-id :- s/Int user-id :- s/Int]
+  (first (select vehicles (kc/where {:id vehicle-id :user_id user-id}))))
 
 (s/defn create-vehicle-make :- vehicles-schema/VehicleMake
   [vehicle-make :- vehicles-schema/InputVehicleMake]

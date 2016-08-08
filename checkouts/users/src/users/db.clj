@@ -37,6 +37,7 @@
 
 
 (defentity users
+  (kc/database db)
   (kc/table "users_tbl"))
 
 (def users-from-db-transducer

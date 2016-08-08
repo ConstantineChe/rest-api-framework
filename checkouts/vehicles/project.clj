@@ -24,15 +24,15 @@
   :plugins [[info.sunng/lein-bootclasspath-deps "0.2.0"]
             [lein-midje "3.0.0"]
             [lein-environ "1.0.3"]
-            [lein-localrepo "0.5.3"]]
+            [lein-localrepo "0.5.3"]
+            [lein-codox "0.9.5"]]
   :aliases {"migrate"  ["run" "-m" "vehicles.db/migrate"]
             "rollback" ["run" "-m" "vehicles.db/rollback"]
             "autotest" ["with-profile" "test" "midje" ":autotest"]}
   :profiles {:dev {:aliases {"run-dev" ["trampoline" "run" "-m" "vehicles.server/run-dev"]}
                    :dependencies [[io.pedestal/pedestal.service-tools "0.5.0" :exclusions [org.clojure/tools.reader]]]
                    :env {:kafka-server "localhost:9091"
-                         :db "carbook_vehicles"}
-                   :aot :all}
+                         :db "carbook_vehicles"}}
              :test {:env {:kafka-server "localhost:9091"
                           :db "carbook_vehicles_test"}
                     :aot :all

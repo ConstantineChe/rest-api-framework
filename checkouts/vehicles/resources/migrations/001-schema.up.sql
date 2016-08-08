@@ -1,5 +1,6 @@
 CREATE TABLE vehicles_tbl (
        id serial,
+       user_id integer,
        make_id integer,
        model_id integer,
        year integer,

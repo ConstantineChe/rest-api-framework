@@ -4,8 +4,12 @@
 (defn req [key]
   (s/required-key key))
 
+(defn opt [key]
+  (s/required-key key))
+
 (s/defschema Vehicle
   {(req :id) s/Int
+   (opt :user_id) s/Int
    (req :make_id) s/Int
    (req :model_id) s/Int
    (req :year) s/Int
@@ -15,7 +19,8 @@
    (req :enabled) s/Bool})
 
 (s/defschema InputVehicle
-  {(req :make_id) s/Int
+  {(req :user_id) s/Int
+   (req :make_id) s/Int
    (req :model_id) s/Int
    (req :year) s/Int
    (req :modification_id) s/Int

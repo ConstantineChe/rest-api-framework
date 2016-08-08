@@ -29,4 +29,4 @@
    (req :enabled) s/Bool})
 
 (s/defschema UserWithoutPassword
-  (dissoc User :password))
+  (dissoc User (req :password)))

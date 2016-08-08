@@ -21,17 +21,3 @@
     (try (test)
          (finally (do (println "clear tables")
                       (dorun (map #((exec-raw connection) (str "TRUNCATE TABLE " %)) tables)))))))
-
-(defn api-request
-  ([service method route]
-   (api-request method route nil {}))
-  ([service method route body]
-   (api-request method route body {}))
-  ([service method route body headers]
-   (case body
-     nil (response-for service method route
-                       :headers (merge headers {"Content-Type" "application/json"}))
-     (response-for service method route
-                   :body (json/generate-string body)
-                   :headers (merge headers {"Content-Type" "application/json"}))
-     )))

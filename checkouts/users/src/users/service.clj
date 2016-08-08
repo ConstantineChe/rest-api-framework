@@ -20,8 +20,9 @@
             [users.social-login :as social]
             [utils.interceptors :refer [request-session restrict-unauthorized]]
             [utils.schema
-             [users :as us]
-             [common :as cs]]
+             [users :as user-schema]
+             [common :as common-schema]
+             [vehicles :as vehicles-schema]]
             [clojure.core.async :refer [<!!]]
             [clojure.string :as str]
             [pedestal-api
@@ -30,12 +31,13 @@
             [schema.core :as s]))
 
 
+;;========================== API route handlers ================================
 
 (def users
   (handler
    ::users
    {:summary "api users"
-    :responses {200 {:body {:data [us/UserWithoutPassword]}}}
+    :responses {200 {:body {:data [(dissoc user-schema/User (s/required-key :password))]}}}
     :parameters {}
     :operationId :users}
    (fn [request]
@@ -48,7 +50,7 @@
    ::create-user
    {:summary "create new user"
     :responses {201 {:body {:message s/Str}}}
-    :parameters {:body-params us/InputUser}
+    :parameters {:body-params user-schema/InputUser}
     :operationId :create-user}
    (fn [{user :body-params}]
      (db/create-user (dissoc user :password_conf))
@@ -81,15 +83,16 @@
   (handler
    ::users-with-commons
    {:summary "ms req"
-    :responses {200 {:body {:data {:users [us/User]
-                                   :commons cs/Settings}}}}
+    :responses {200 {:body {:data {:users [(dissoc user-schema/User (s/required-key :password))]
+                                   :commons common-schema/Settings}}}}
     :parameters {:query-params {(s/optional-key :name) s/Str}}
     :operationId :users-with-commons}
    (fn [request]
+
      (let [sid (-> request :session-id keyword)
            sid (if sid sid :nil)
            chan (service/get-chan! sid)]
-       (service/send-msg! sid "common" {:type :request
+       (k/produce! sid "common" {:type :request
                                        :from "users"
                                        :operation :settings})
        (-> (response {:data {:users (db/get-users)
@@ -114,6 +117,74 @@
              (status 200))
          (response {:message "invalid refresh or auth token"}))))))
 
+(def create-vehicle
+  (handler
+   ::create-vehicle
+   {:summary "Create user vihicle"
+    :responses {201 {:body {:message s/Str
+                            (s/optional-key :data) vehicles-schema/Vehicle}}}
+    :parameters {:body-params (dissoc vehicles-schema/InputVehicle (s/required-key :user_id))}
+    :operationId :create-vehicle}
+   (fn [{vehicle :body-params user :user :as request}]
+     (let [sid (request :session-id)
+           sid (if sid (keyword (str "create-vehicle" sid)) :create-vehicle-nil)
+           chan (service/get-chan! sid)
+           vehicles-response (future (<!! chan))]
+       (k/produce! sid "vehicles" {:type :request
+                                          :from "users"
+                                          :operation :create-vehicle
+                                          :params {:vehicle vehicle
+                                                   :user-id user}})
+       (-> (response {:message "Created" :data @vehicles-response})
+           (status 201))))))
+
+(def delete-vehicle
+  (handler
+   ::delete-vehicle
+   {:summary "Delete user vehicle"
+    :responses {200 {:body {:message s/Str}}}
+    :parameters {:body-params {:vehicle-id s/Int}}
+    :operationId :delete-vehicle}
+   (fn [{params :body-params user :user :as request}]
+     (let [sid (request :session-id)
+           sid (if sid (keyword (str "delete-vehicle" sid)) :delete-vehicle-nil)
+           chan (service/get-chan! sid)
+           vehicles-response (future (<!! chan))]
+       (k/produce! sid "vehicles" {:type :request
+                                   :from "users"
+                                   :operation :delete-vehicle
+                                   :params {:vehicle-id (:vehicle-id params)
+                                                   :user-id user}})
+       (if (= "success" (:status @vehicles-response))
+         (-> (response {:message (:message @vehicles-response)})
+             (status 200))
+         (-> (response {:message (:message @vehicles-response)})
+             (status 400)))))))
+
+(def change-current-vehicle
+  (handler
+   ::change-current-vehicle
+   {:summary "Change user's current vehicle"
+    :responses {200 {:body {(s/optional-key :data)  vehicles-schema/Vehicle (s/optional-key :message) s/Str}}}
+    :parameters {:body-params {:vehicle-id s/Int}}
+    :operationId :change-current-vehicle}
+   (fn [{params :body-params user :user :as request}]
+     (let [sid (request :session-id)
+           sid (if sid (keyword (str "change-current-vehicle" sid)) :delete-vehicle-nil)
+           chan (service/get-chan! sid)
+           vehicles-response (future (<!! chan))]
+       (k/produce! sid "vehicles" {:type :request
+                                   :from "users"
+                                   :operation :get-users-vehicle
+                                   :params {:vehicle-id (:vehicle-id params)
+                                            :user-id user}})
+       (if (= "success" (:status @vehicles-response))
+         (-> (response {:data (:vehicle @vehicles-response)})
+             (assoc-in [:session :current-vehicle] (:vehicle @vehicles-response)))
+         (-> (response {:message (str "User has no car with id " (:vehicle-id params))})))))))
+
+;;============================ Interceptors ====================================
+
 (def token-auth
    (interceptor/before
     ::token-auth
@@ -128,7 +199,7 @@
                     (:user user)
                     nil))))))
 
-;;========================= Site route handlers ============================
+;;========================= Site route handlers ================================
 
 (defn fb-auth [request]
   (let [data (json/parse-string (social/auth (-> request :params :code)
@@ -199,15 +270,19 @@
 
 (defn login-page
   [request]
-  (response (slurp (io/file (io/resource "login.html")))))
+  (response (slurp (io/resource "login.html"))))
 
 (defn register-page
   [request]
-  (response (slurp (io/file (io/resource "register.html")))))
+  (response (slurp (io/resource "register.html"))))
 
 (def redis-connection {})
 
 (def session (middleware/session  {:store (redis-store redis-connection)}))
+
+
+;;============================== Routes ==================================
+
 
 (s/with-fn-validation
   (api/defroutes api-routes
@@ -219,6 +294,7 @@
              :externalDocs {:description "Find out more"
                             :url         "http://swagger.io"}}]}
     [[["/" ^:interceptors [session
+                           request-session
                            token-auth
                            api/error-responses
                            (api/negotiate-response)
@@ -227,6 +303,11 @@
                            (api/coerce-request)
                            (api/validate-response)
                            (api/doc {:tags ["users"]})]
+       ["/my" ^:interceptors [restrict-unauthorized]
+        ["/vehicles"
+         {:post create-vehicle
+          :delete delete-vehicle}]
+        ["/change-current-vehicle" {:post change-current-vehicle}]]
        ["/users" ;^:interceptors [restrict-unauthorized]
         {:get users
          :post create-user}

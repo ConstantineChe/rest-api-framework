@@ -41,5 +41,6 @@
                           :db "carbook_users_test"}
                     :aot :all
                     :dependencies [[io.pedestal/pedestal.service-tools "0.5.0" :exclusions [org.clojure/tools.reader]]]}
-             :uberjar {:aot [users.server users.kafka]}}
+             :uberjar {:aot :all}}
+  :aot [users.config]
   :main ^{:skip-aot true} users.server)

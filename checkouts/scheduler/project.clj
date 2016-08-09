@@ -7,4 +7,11 @@
                  [utils "0.3.1-SNAPSHOT"]
                  [prismatic/schema "1.1.2"]
                  [environ "1.0.3"]
-                 [clojurewerkz/quartzite "2.0.0"]])
+                 [org.clojure/core.async "0.2.385"]
+                 [clojurewerkz/quartzite "2.0.0"]]
+  :aliases {"migrate"  ["run" "-m" "scheduler.db/migrate"]
+            "rollback" ["run" "-m" "scheduler.db/rollback"]
+            "autotest" ["with-profile" "test" "midje" ":autotest"]}
+  :profiles {:dev {:kafka-server "localhost:9091"
+                   :db "carbook_scheduler"}
+             :uberjar {:aot :all}})

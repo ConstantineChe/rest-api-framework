@@ -18,6 +18,14 @@
                  [ymilky/franzy "0.0.2-SNAPSHOT"]
                  [ymilky/franzy-nippy "0.0.1"]
                  [ymilky/franzy-common "0.0.1"]
-                 [org.clojure/core.async "0.2.385"]]
+                 [org.clojure/core.async "0.2.385"]
+                 [ch.qos.logback/logback-classic "1.1.7" :exclusions [org.slf4j/slf4j-api]]
+                 [org.slf4j/jul-to-slf4j "1.7.21"]
+                 [org.slf4j/jcl-over-slf4j "1.7.21"]
+                 [org.slf4j/log4j-over-slf4j "1.7.21"]]
   :plugins [[lein-localrepo "0.5.3"]]
-  :aot :all)
+  :aot [utils.kafka-service
+        utils.db
+        utils.cache
+        utils.logger
+        utils.interceptors])

@@ -1,23 +1,23 @@
 (ns scheduler.core
   (:require [clojurewerkz.quartzite.scheduler :as qs]
-             [clojurewerkz.quartzite.triggers :as t]
-             [clojurewerkz.quartzite.jobs :as j :refer [defjob]]
-             [clojurewerkz.quartzite.schedule.cron :refer [schedule cron-schedule]]
-             [clj-time.local :as l]
-             [clj-time.core :as time]
-             [io.pedestal.log :as log]))
+            [clojurewerkz.quartzite.triggers :as t]
+            [clojurewerkz.quartzite.jobs :as j :refer [defjob]]
+            [clojurewerkz.quartzite.schedule.cron :refer [schedule cron-schedule]]
+            [scheduler.db :as db]
+            [clj-time.local :as l]
+            [clj-time.core :as time]
+            [io.pedestal.log :as log]))
 
 
-(declare do-job done)
+(defn do-job [job]
+  (prn (:data job)))
 
 (defjob Jobs
   [ctx]
-  (let [current-time (l/local-now)
-        schedules get-schedules]
-    (dorun (for [job schedules]
-             (try (do (do-job job)
-                      (done job))
-                  (catch Exception e (log/error "Error doing job" "\n" (.getMessage e))))))))
+  (doseq [job (db/get-jobs)]
+    (do (do-job job)
+        (prn "kron triggered")
+        (db/mark-as-executed (:id job)))))
 
 (defn init-scheduler!
   "Initialize scheduler job"
@@ -33,3 +33,5 @@
                                    (cron-schedule "0 */5 * ? * *"))))]
     (qs/schedule s job trigger))
   )
+
+(init-scheduler!)

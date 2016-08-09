@@ -6,7 +6,8 @@
             [clj-time.format :as f]
             [clj-time.core :as t]
             [clojure.string :as str]
-            [scheduler.config :as config]))
+            [scheduler.config :as config]
+            [cheshire.core :as json]))
 
 (def db-connection
   (util/db-connection config/db-connection))
@@ -20,3 +21,18 @@
 (defentity schedule
   (kc/database db)
   (kc/table "schedule_tbl"))
+
+(defn schedule-job [time data]
+  (insert schedule (kc/values {:scheduled_to (util/cast-type time "timestamp")
+                               :data (util/cast-type (json/generate-string data) "json")
+                               :executed false})))
+
+(defn get-jobs []
+  (select schedule (kc/where {:schedule_to [<= (kc/sqlfn now)]
+                              :executed false})))
+
+(defn mark-as-executed [id]
+  (kc/update schedule
+          (kc/set-fields {:executed true
+                          :executed_at (kc/sqlfn now)})
+          (kc/where {:id id})))

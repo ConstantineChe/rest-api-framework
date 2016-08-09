@@ -1,5 +1,8 @@
 (ns users.config
-  (:require [environ.core :refer [env]]))
+  (:require [environ.core :refer [env]]
+            utils.logger)
+  (:import [org.slf4j Logger LoggerFactory]
+))
 
 (def db-connection {:db (or (:db env) (:users-db env) "carbook_users")
                      :username (:db-user env)
@@ -35,3 +38,6 @@
                     :api-secret (:google-api-secret env "EPVJDDiLqBMQMlZXiNYClqlf")
                     :scope "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/plus.login"
                     :callback "http://localhost/login/google/auth"})
+
+(defn logger [tag]
+  (LoggerFactory/getLogger Logger))

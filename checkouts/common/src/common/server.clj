@@ -2,7 +2,8 @@
   (:gen-class) ; for -main method in uberjar
   (:require [io.pedestal.http :as server]
             [io.pedestal.http.route :as route]
-            [common.service :as service]))
+            [common.service :as service]
+            [common.kafka :as k]))
 
 ;; This is an adapted service map, that can be started and stopped
 ;; From the REPL you can call server/start and server/stop on this service
@@ -11,6 +12,7 @@
 (defn run-dev
   "The entry-point for 'lein run-dev'"
   [& [opts :as args]]
+  (.start k/kafka-component)
   (println "\nCreating your [DEV] common service server...")
   (-> service/service ;; start with production configuration
       (merge opts
@@ -33,6 +35,7 @@
 (defn -main
   "The entry-point for 'lein run'"
   [& args]
+  (.start k/kafka-component)
   (println "\nCreating common service your server...")
   (server/start runnable-service))
 

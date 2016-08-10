@@ -1,22 +1,22 @@
 (ns users.kafka
-  (:require [utils.kafka-service :as service]
+  (:require [utils.kafka-service :as service :refer [map->Kafka]]
             [users.session :as session]
             [environ.core :refer [env]]
             [users.config :as config]
             [clojure.core.async :as async]))
 
 
-(defn producer []
-  (service/producer (:producer-config config/kafka)))
-
-(defn consumer []
-  (service/consumer (:consumer-config config/kafka)))
-
-(def producer-chan (async/chan))
-
-(def produce! (partial service/send-msg! producer-chan))
-
 (defmulti process-request (comp :operation :message))
+
+(def kafka-component
+  (map->Kafka (merge (select-keys config/kafka
+                                  [:producer-config
+                                   :consumer-config
+                                   :subscriptions])
+                     {:producer-chan (async/chan)
+                      :handler process-request})))
+
+(def produce! (partial send-msg! kafka-component))
 
 (defmethod process-request :token [{:keys [message sid]}]
   (let [{:keys [client token]} (:params message)]
@@ -30,8 +30,3 @@
 
 (defmethod process-request :default [msg]
   (println "Invalid request operation: " (-> msg :message :operation)))
-
-
-
-(service/start-consumer! (consumer) (:consumer-subscriptions config/kafka) process-request)
-(service/start-producer! (producer) producer-chan)

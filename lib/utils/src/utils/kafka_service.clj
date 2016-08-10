@@ -2,12 +2,15 @@
   (:require [franzy.clients.producer.client :as producer]
             [franzy.clients.consumer.client :as consumer]
             [franzy.clients.consumer.defaults :as defaults]
+            [franzy.common.models.types :as types]
+            [franzy.clients.consumer.callbacks :as callbacks]
             [franzy.serialization.deserializers :as deserializers]
             [franzy.serialization.serializers :as serializers]
             [franzy.serialization.nippy.deserializers :refer [nippy-deserializer]]
             [franzy.serialization.nippy.serializers :refer [nippy-serializer]]
             [franzy.clients.consumer.protocols :refer :all]
             [franzy.clients.producer.protocols :refer :all]
+            [io.pedestal.log :as log]
             [com.stuartsierra.component :as component]
             [environ.core :refer [env]]
             [clojure.core.async :as async :refer [>! <! <!! >!!]]))
@@ -22,11 +25,17 @@
                             value-serializer
                             )))
 
-(defn consumer [config]
+(defn consumer [config subscriptions]
   (let [cc config
         key-deserializer (deserializers/keyword-deserializer)
         value-deserializer (nippy-deserializer)
-        defaults (defaults/make-default-consumer-options)]
+        partitions (map types/map->TopicPartition subscriptions)
+        rebalance-listener (callbacks/consumer-rebalance-listener
+                            (fn [topic-partitions]
+                              (log/info :msg "topic partitions assigned:" :partitions topic-partitions))
+                            (fn [topic-partitions]
+                              (log/info :msg "topic partitions revoked:" :partitions topic-partitions)))
+        defaults (defaults/make-default-consumer-options {:rebalance-listener-callback rebalance-listener})]
     (consumer/make-consumer cc
                             key-deserializer
                             value-deserializer
@@ -57,15 +66,16 @@
 (defn start-consumer! [consumer partitions handler]
   (async/thread
     (with-open [c consumer]
-      (assign-partitions! c partitions)
-      (seek-to-end-offset! c partitions)
-      (while true
-        (let [cr (poll! c)]
-          (doseq [msg (into [] cr)]
-            (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
-            (process-message handler {:message (:value msg)
-                                      :sid (:key msg)})))
-        ))
+      (let [topics (map (comp name :topic) partitions)]
+        (subscribe-to-partitions! c topics)
+        (println "Partitions subscribed to:" (partition-subscriptions c))
+        (while true
+          (let [cr (poll! c)]
+            (doseq [msg (into [] cr)]
+              (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
+              (process-message handler {:message (:value msg)
+                                        :sid (:key msg)})))
+          )))
     ))
 
 (defn start-producer! [producer producer-chan]
@@ -81,7 +91,7 @@
 
   (start [component]
     (println "Starting Kafka...")
-    (let [consumer-thread (start-consumer! (consumer consumer-config) subscriptions handler)
+    (let [consumer-thread (start-consumer! (consumer consumer-config subscriptions) subscriptions handler)
           producer-thread (start-producer! (producer producer-config) producer-chan)]
       (println "Kafka started.")
       (assoc component :consumer-thread consumer-thread :produer-thread producer-thread)))

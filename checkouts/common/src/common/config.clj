@@ -18,6 +18,6 @@
                               :group.id                "common"
                               :auto.offset.reset       :earliest
                               :enable.auto.commit      true}
-            :consumer-subscriptions [{:topic :common :partition 0}]})
+            :subscriptions [{:topic :common :partition 0}]})
 
 (def http-port (Integer. (:http-port env "8081")))

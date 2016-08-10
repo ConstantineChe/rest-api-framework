@@ -9,7 +9,7 @@
                      :password (:db-password env)})
 
 (def redis-connection {:pool {} :spec (merge {:host (:redis-host env "127.0.0.1")
-                                              :port (:redis-port env "6379")}
+                                              :port (Integer. (:redis-port env "6379"))}
                                              (if-let [pass (:redis-password env)]
                                                {:password pass})
                                              (if-let [db (:redis-db env)]
@@ -21,7 +21,7 @@
                               :group.id                "users"
                               :auto.offset.reset       :earliest
                               :enable.auto.commit      true}
-            :consumer-subscriptions [{:topic :users :partition 0}]})
+            :subscriptions [{:topic :users :partition 0}]})
 
 (def http-port (:http-port env 8080))
 

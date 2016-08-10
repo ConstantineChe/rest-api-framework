@@ -12,12 +12,12 @@
 (defmulti process-request (comp :operation :message))
 
 (def kafka-component
-  (map->Kafka (log/spy (merge (select-keys config/kafka
-                                    [:producer-config
-                                     :consumer-config
-                                     :subscriptions])
-                       {:producer-chan (async/chan)
-                        :handler process-request}))))
+  (map->Kafka (merge (select-keys config/kafka
+                                  [:producer-config
+                                   :consumer-config
+                                   :subscriptions])
+                     {:producer-chan (async/chan)
+                      :handler process-request})))
 
 (defmethod process-request :schedule [{:keys [message sid]}]
   (let [{:keys [time data]} (:params message)]

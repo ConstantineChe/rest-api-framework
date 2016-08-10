@@ -4,17 +4,20 @@
             [common.config :as config]
             [clojure.core.async :as async]))
 
-(defn producer []
-  (service/producer (:producer-config config/kafka)))
 
-(defn consumer []
-  (service/consumer (:consumer-config config/kafka)))
 
-(def producer-chan (async/chan))
-
-(def produce! (partial service/send-msg! producer-chan))
 
 (defmulti process-request (comp :operation :message))
+
+(def kafka-component
+  (service/map->Kafka (merge (select-keys config/kafka
+                                  [:producer-config
+                                   :consumer-config
+                                   :subscriptions])
+                     {:producer-chan (async/chan)
+                      :handler process-request})))
+
+(def produce! (partial send-msg! kafka-component))
 
 (defmethod process-request :settings [{:keys [message sid]}]
   (produce! sid (:from message) {:type :response
@@ -22,7 +25,3 @@
 
 (defmethod process-request :default [msg]
   (println "Invalid request operation: " (-> msg :message :operation)))
-
-
-(service/start-consumer! (consumer) (:consumer-subscriptions config/kafka) process-request)
-(service/start-producer! (producer) producer-chan)

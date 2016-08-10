@@ -7,7 +7,17 @@
             [clojure.core.async :as async]))
 
 
+(defmulti process-request (comp :operation :message))
 
+(def kafka-component
+  (map->Kafka (merge (select-keys config/kafka
+                                  [:producer-config
+                                   :consumer-config
+                                   :subscriptions])
+                     {:producer-chan (async/chan)
+                      :handler process-request})))
+
+(def produce! (partial send-msg! kafka-component))
 
 (defmethod process-request :create-vehicle [{:keys [message sid]}]
   (let [{:keys [user-id vehicle]} (:params message)]
@@ -27,11 +37,3 @@
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data {:vehicle vehicle :status (if vehicle "success" "failed")}})))
-
-(defmethod process-request :default [msg]
-  (println "Invalid request operation: " (-> msg :message :operation)))
-
-
-
-(service/start-consumer! (consumer) (:consumer-subscriptions config/kafka) process-request)
-(service/start-producer! (producer) producer-chan)

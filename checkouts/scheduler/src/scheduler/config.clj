@@ -11,4 +11,4 @@
                               :group.id                "scheduler"
                               :auto.offset.reset       :earliest
                               :enable.auto.commit      true}
-            :consumer-subscriptions [{:topic :scheduler :partition 0}]})
+            :subscriptions [{:topic :scheduler :partition 0}]})

@@ -8,6 +8,7 @@
             [franzy.serialization.nippy.serializers :refer [nippy-serializer]]
             [franzy.clients.consumer.protocols :refer :all]
             [franzy.clients.producer.protocols :refer :all]
+            [com.stuartsierra.component :as component]
             [environ.core :refer [env]]
             [clojure.core.async :as async :refer [>! <! <!! >!!]]))
 
@@ -49,7 +50,7 @@
     )
 
 
-(defn send-msg! [producer-chan session topic msg]
+(defn send-message! [producer-chan session topic msg]
   (println ">>>>>>>>>>>>CHAN>SEND: " session topic msg)
   (>!! producer-chan {:topic topic :partition 0 :key session :value msg}))
 
@@ -73,3 +74,28 @@
       (while true
         (println ">>>>>>>>>>>KAFKA>SEND: " (send-sync! p (<!! producer-chan))))
       )))
+
+
+(defrecord Kafka [consumer-config producer-config consumer-thread producer-thread producer-chan subscriptions handler]
+  component/Lifecycle
+
+  (start [component]
+    (println "Starting Kafka...")
+    (let [consumer-thread (start-consumer! (consumer consumer-config) subscriptions handler)
+          producer-thread (start-producer! (producer producer-config) producer-chan)]
+      (println "Kafka started.")
+      (assoc component :consumer-thread consumer-thread :produer-thread producer-thread)))
+
+  (stop [component]
+    (async/close! producer-thread)
+    (async/close! consumer-thread)
+    (println "Cannot stop Kafka Prozeß (yet)...")))
+
+(defprotocol KafkaProtocol
+  (send-msg! [component ^String sid ^String topic message]))
+
+(extend-protocol KafkaProtocol
+  Kafka
+  (send-msg! [component sid topic message]
+    (send-message! (:producer-chan component) sid topic message)
+    component))

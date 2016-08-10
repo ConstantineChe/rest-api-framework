@@ -28,7 +28,7 @@
                                :executed false})))
 
 (defn get-jobs []
-  (select schedule (kc/where {:schedule_to [<= (kc/sqlfn now)]
+  (select schedule (kc/where {:scheduled_to [<= (kc/sqlfn now)]
                               :executed false})))
 
 (defn mark-as-executed [id]
@@ -36,3 +36,5 @@
           (kc/set-fields {:executed true
                           :executed_at (kc/sqlfn now)})
           (kc/where {:id id})))
+
+;(schedule-job "2016-08-08 18:05:00" {:test "test" :do :do-sou :mek 18})

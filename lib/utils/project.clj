@@ -18,6 +18,7 @@
                  [ymilky/franzy "0.0.2-SNAPSHOT"]
                  [ymilky/franzy-nippy "0.0.1"]
                  [ymilky/franzy-common "0.0.1"]
+                 [com.stuartsierra/component "0.3.1"]
                  [org.clojure/core.async "0.2.385"]
                  [ch.qos.logback/logback-classic "1.1.7" :exclusions [org.slf4j/slf4j-api]]
                  [org.slf4j/jul-to-slf4j "1.7.21"]

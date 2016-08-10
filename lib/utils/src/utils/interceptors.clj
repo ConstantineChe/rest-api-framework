@@ -9,7 +9,7 @@
             [clojure.string :as str]
             [clojure.core.async :refer [<!!]]))
 
-(defn token-auth [service producer-chan]
+(defn token-auth [service kafka-component]
   (interceptor/before
    ::token-auth
    (fn [{:keys [request] :as context}]
@@ -19,7 +19,7 @@
            msg-key (keyword (str "auth-" token))
            chan (if token (service/get-chan! msg-key))
            _ (if (and (= "Bearer" type) token)
-               (service/send-msg! producer-chan msg-key "users"
+               (service/send-msg! kafka-component msg-key "users"
                                   {:type :request
                                    :from service
                                    :operation :token

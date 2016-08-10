@@ -97,7 +97,7 @@
              :externalDocs {:description "Find out more"
                             :url         "http://swagger.io"}}]}
     [[["/" ^:interceptors [session
-                           (token-auth "vehicles" k/producer-chan)
+                           (token-auth "vehicles" k/kafka-component)
                            ;restrict-unauthorized
                            api/error-responses
                            (api/negotiate-response)

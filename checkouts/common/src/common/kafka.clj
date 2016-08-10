@@ -17,7 +17,7 @@
                      {:producer-chan (async/chan)
                       :handler process-request})))
 
-(def produce! (partial send-msg! kafka-component))
+(def produce! (partial service/send-msg! kafka-component))
 
 (defmethod process-request :settings [{:keys [message sid]}]
   (produce! sid (:from message) {:type :response

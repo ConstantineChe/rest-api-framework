@@ -10,7 +10,7 @@
 (defmulti process-request (comp :operation :message))
 
 (def kafka-component
-  (map->Kafka (merge (select-keys config/kafka
+  (service/map->Kafka (merge (select-keys config/kafka
                                   [:producer-config
                                    :consumer-config
                                    :subscriptions])

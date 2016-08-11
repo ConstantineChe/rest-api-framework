@@ -7,6 +7,7 @@
                  [common "0.0.1-SNAPSHOT"]
                  [users "0.0.1-SNAPSHOT"]
                  [vehicles "0.0.1-SNAPSHOT"]
+                 [scheduler "0.1.0-SNAPSHOT"]
                  [io.aviso/config "0.1.13"]
                  [environ "1.0.3"]]
   :min-lein-version "2.0.0"
@@ -14,9 +15,14 @@
             [lein-environ "1.0.3"]]
   :target-path "target/%s/"
   :resource-paths ["config", "resources" "checkouts/users/src" "checkouts/common/src" "checkouts/vehicles/src"]
-  :modules {:dirs ["checkouts/common" "checkouts/users" "checkouts/vehicles"]}
+  :modules {:dirs ["checkouts/common"
+                   "checkouts/users"
+                   "checkouts/vehicles"
+                   "checkouts/scheduler"]}
   :env {:vehicles-db "carbook_vehicles"
         :users-db "carbook_users"
+        :scheduler-db "carbook_scheduler"
+        :cron-expr "0 * * ? * *"
         :db-user "constantine"
         :db-password "123123q"}
   :profiles {:uberjar {:aot :all}}

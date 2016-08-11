@@ -23,8 +23,5 @@
   (let [{:keys [time data]} (:params message)]
     (db/schedule time data)))
 
-(defmethod process-request :test  [{:keys [message sid]}]
-  (.send-msg! kafka-component "test" "test" "test"))
-
 (defmethod process-request :default [msg]
   (println "Invalid request operation: " (-> msg :message :operation)))

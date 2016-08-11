@@ -2,6 +2,7 @@
   (:require [users.server :as users]
             [common.server :as commons]
             [vehicles.server :as vehicles]
+            [scheduler.core :as scheduler]
             [io.pedestal.http :as http])
   (:gen-class))
 
@@ -12,8 +13,10 @@
     (when dev?
       (users/run-dev {::http/port 8080})
       (commons/run-dev {::http/port 8081})
-      (vehicles/run-dev {::http/port 8082}))
+      (vehicles/run-dev {::http/port 8082})
+      (scheduler/-main))
     (when-not dev?
       (users/-main)
       (commons/-main)
-      (vehicles/-main))))
+      (vehicles/-main)
+      (scheduler/-main))))

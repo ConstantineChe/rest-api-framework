@@ -16,7 +16,7 @@
                               :client.id "vehicles"}
             :consumer-config {:bootstrap.servers       [(:kafka-bootstrap-servers env "localhost:9091")]
                               :group.id                "vehicles"
-                              :auto.offset.reset       :earliest
+                              :auto.offset.reset       :latest
                               :enable.auto.commit      true}
             :subscriptions [{:topic :vehicles :partition 0}]})
 

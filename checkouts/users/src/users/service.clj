@@ -307,7 +307,7 @@
         ["/vehicles"
          {:post create-vehicle
           :delete delete-vehicle}]
-        ["/change-current-vehicle" {:post change-current-vehicle}]]
+        ["/change-current-vehicle" {:put change-current-vehicle}]]
        ["/users" ;^:interceptors [restrict-unauthorized]
         {:get users
          :post create-user}

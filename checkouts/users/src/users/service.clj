@@ -38,9 +38,10 @@
    ::users
    {:summary "api users"
     :responses {200 {:body {:data [(dissoc user-schema/User (s/required-key :password))]}}}
-    :parameters {}
+    :parameters {:query-params {(s/optional-key :limit) s/Int}}
     :operationId :users}
    (fn [request]
+     (prn (:query-params request))
      (-> (response {:data (db/get-users)})
          (status 200)))))
 

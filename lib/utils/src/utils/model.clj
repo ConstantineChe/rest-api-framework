@@ -1,7 +1,8 @@
 (ns utils.model
   (:require [korma.core :as kc]
             [utils.kafka-service :as k]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [clojure.set :as set]))
 
 (defn sort-query [field]
   (if (.startsWith field "-")
@@ -10,6 +11,7 @@
   )
 
 (defn build-select [entity query]
+  (prn `(fields ~@(eval (:fields query))))
   `(kc/select ~entity
               ~@(filter identity
                         [(if (eval `(:fields ~query)) `(kc/fields ~@(eval `(:fields ~query))))
@@ -33,7 +35,20 @@
 (defn parse-query [model query sid]
   (let [fields (:fields query)
         model-fields (:fields model)]
-    {:select {:fields (if fields (filter (:own model-fields) fields))
+    {:select {:fields (vec (reduce (fn [fields field]
+                                  (if ((:language-fields model-fields) field)
+                                    (conj fields (kc/raw (str (name field) "->>'EN' AS "
+                                                              (name field))))
+                                    (conj fields field)))
+                                []
+                                (if fields
+                                  (filter
+                                   (set/union (:language-fields model-fields)
+                                              (:own model-fields))
+                                   (vec fields))
+                                  (vec (set/union (:language-fields model-fields)
+                                                  (:own model-fields))))))
+
               :order (if (:sort query) (sort-query (:sort query)) [:id :ASC])
               :where (if (:filter query)
                        (reduce-kv (fn [where k v]
@@ -56,26 +71,21 @@
                          (filter (:external model-fields) fields)
                          (:external model-fields)))}))
 
+(defn transform-entity [entity]
+  {:id (:id entity)
+   :attrs (dissoc entity :id)})
 
 
 (defn execute-query* [service model query]
   (let [data (gensym "data")
         joins (gensym "joins")]
-   `(let [~data ~(build-select (eval `(:entity ~model)) (eval `(:select ~query)))
-          ~joins (reduce-kv (fn [joins# k# v#]
-                                       (merge joins#
-                                              {k# (v# ~data)}))
-                            {} ~(eval `(:fields (:joins ~model))))]
-      {:data ~data
-       :included ~joins})))
+   `(let [~data ~(build-select (eval `(:entity ~model)) (eval `(:select ~query)))]
+      (array-map :data (vec (map transform-entity ~data))
+                 :included (reduce-kv (fn [joins# k# v#]
+                                        (merge joins#
+                                               {k# (v# ~data)}))
+                                      {} ~(eval `(:joins (:fields ~model))))))))
 
 (defmacro execute-query [service model query]
-  (execute-query* service model (parse-query model query "test")))
-
-
-
-(defn transform-entity [entity]
-  {:id (:id entity)
-   :attrs (dissoc entity :id)})
-
-(defn transform-response [mdoel response])
+  (execute-query* service model (do (let [q (parse-query model query "test")]
+                                      (prn q) q))))

@@ -12,7 +12,7 @@
 
 (def vehicles
   {:entity 'db/vehicles
-   :fields {:own #{:year :registration_number [:make_id :make] [:model_id :model]}
+   :fields {:own #{:id :year :registration_number [:make_id :make] [:model_id :model]}
             :joins {:makes #(select-ids db/vehicle-makes
                                                   (reduce (fn [ids item]
                                                             (conj ids (:make item)))
@@ -31,9 +31,18 @@
 
 (clojure.pprint/pprint
  (utils.model/parse-query* vehicles
-                          {:filter {:id [1 2 3]} :limit 5 :sort "-year"} "test"))
+                           {:fields [:id :model :make :registration_number
+                                      :vin_code :year]
+                             :filter {:id (vec (range 10))}
+                             :limit 5 :sort "-year"}
+                           "test"))
 ;clojure.pprint/pprint
-(macroexpand-1
- '(utils.model/execute-query "w"
-                            vehicles
-                            {:filter {:id [1 2 3]} :fields [:year :enabled] :limit 5 :sort "-year"}))
+;macroexpand-1
+
+(clojure.pprint/pprint
+ (utils.model/execute-query "w"
+                              vehicles
+                              {:fields [:id :model :make :registration_number
+                                        :vin_code :year]
+                               :filter {:id (vec (range 10))}
+                               :limit 5 :sort "-year"}))

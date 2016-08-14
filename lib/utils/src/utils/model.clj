@@ -11,7 +11,6 @@
   )
 
 (defn build-select [entity query]
-  (prn `(fields ~@(eval (:fields query))))
   `(kc/select ~entity
               ~@(filter identity
                         [(if (eval `(:fields ~query)) `(kc/fields ~@(eval `(:fields ~query))))
@@ -32,7 +31,7 @@
                      (filter (:includes model) {:fields query})))
 
 
-(defn parse-query [model query sid]
+(defn parse-query* [model query sid]
   (let [fields (:fields query)
         model-fields (:fields model)]
     {:select {:fields (vec (reduce (fn [fields field]
@@ -42,10 +41,13 @@
                                     (conj fields field)))
                                 []
                                 (if fields
-                                  (filter
-                                   (set/union (:language-fields model-fields)
-                                              (:own model-fields))
-                                   (vec fields))
+                                  (vec
+                                   (filter
+                                    (fn [fld]
+                                      (if (vector? fld) ((set fields) (second fld))
+                                          ((set fields) fld)))
+                                    (vec (set/union (:language-fields model-fields)
+                                                    (:own model-fields)))))
                                   (vec (set/union (:language-fields model-fields)
                                                   (:own model-fields))))))
 
@@ -54,13 +56,13 @@
                        (reduce-kv (fn [where k v]
                                     (merge where
                                            {k (if (sequential? v)
-                                                ['''in v]
+                                                [''in v]
                                                 v)}))
                                   {}
                                   (:filter query)))
               :limit (if (:limit query) (:limit query))
               :offset (if (:offset query) (:offset query))}
-     :joins (if fields (filter (:joins model-fields) fields) (:joins model-fields))
+     :joins (if fields (filter fields (:joins model-fields)) (:joins model-fields))
      :external (reduce-kv (fn [included key req]
                          (let [sid (keyword (str (:topic req) (name (:operation req))))
                                chan (k/get-chan! sid)]
@@ -68,7 +70,7 @@
                                                  :sid sid}})))
                        {}
                        (if fields
-                         (filter (:external model-fields) fields)
+                         (vec (filter (:external model-fields) fields))
                          (:external model-fields)))}))
 
 (defn transform-entity [entity]
@@ -79,7 +81,7 @@
 (defn execute-query* [service model query]
   (let [data (gensym "data")
         joins (gensym "joins")]
-   `(let [~data ~(build-select (eval `(:entity ~model)) (eval `(:select ~query)))]
+    `(let [~data ~(build-select (:entity model) (:select query))]
       (array-map :data (vec (map transform-entity ~data))
                  :included (reduce-kv (fn [joins# k# v#]
                                         (merge joins#
@@ -87,5 +89,4 @@
                                       {} ~(eval `(:joins (:fields ~model))))))))
 
 (defmacro execute-query [service model query]
-  (execute-query* service model (do (let [q (parse-query model query "test")]
-                                      (prn q) q))))
+  (eval `(execute-query* ~service ~model (parse-query* ~model ~query "sid"))))

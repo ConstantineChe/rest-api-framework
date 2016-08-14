@@ -33,13 +33,13 @@
 (defn parse-query [model query sid]
   (let [fields (:fields query)
         model-fields (:fields model)]
-    {:select {:fields (if fields (filter (:own model-fields) fields) (:own model-fields))
+    {:select {:fields (if fields (filter (:own model-fields) fields))
               :order (if (:sort query) (sort-query (:sort query)) [:id :ASC])
               :where (if (:filter query)
                        (reduce-kv (fn [where k v]
                                     (merge where
                                            {k (if (sequential? v)
-                                                ['in v]
+                                                ['''in v]
                                                 v)}))
                                   {}
                                   (:filter query)))
@@ -56,19 +56,22 @@
                          (filter (:external model-fields) fields)
                          (:external model-fields)))}))
 
-(defn build-select [entity query]
-  (eval `(build-select* ~entity ~query)))
 
-(defmacro execute-query* [service model query]
-  (let [data (gensym 'data)
-        joins (gensym 'joins)]
-      `(let [~data (build-select* ~(:entity model) ~(:select query))
-             ~joins (reduce-kv (fn [joins# k# v#]
-                             (merge joins#
-                                    {k# (v# ~data)}))
-                           {} ~(:joins query))]
-         ~{:data data
-          :included joins})))
+
+(defn execute-query* [service model query]
+  (let [data (gensym "data")
+        joins (gensym "joins")]
+   `(let [~data ~(build-select (eval `(:entity ~model)) (eval `(:select ~query)))
+          ~joins (reduce-kv (fn [joins# k# v#]
+                                       (merge joins#
+                                              {k# (v# ~data)}))
+                            {} ~(eval `(:fields (:joins ~model))))]
+      {:data ~data
+       :included ~joins})))
+
+(defmacro execute-query [service model query]
+  (execute-query* service model (parse-query model query "test")))
+
 
 
 (defn transform-entity [entity]

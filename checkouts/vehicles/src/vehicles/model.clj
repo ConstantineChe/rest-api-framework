@@ -18,15 +18,8 @@
                          (if (eval `(:limit ~query)) `(kc/limit ~(eval `(:limit ~query))))
                          (if (eval `(:order ~query)) `(kc/order ~@(eval `(:order ~query))))])))
 
-(def vehicle-model
-  {:query-schema {:fields [s/Str]
-                  :filter {:ids [s/Int]
-                           :year s/Int
-                           :registration_number s/Str}
-                  :limit s/Int
-                  :offset s/Int
-                  :sort s/Str}
-   :entity db/vehicles
+(def vehicles
+  {:entity 'db/vehicles
    :fields {:own [:year :registration_number :make_id :model_id]
             :joins {:makes #(select-ids db/vehicle-makes
                                                   (reduce (fn [item ids]
@@ -43,23 +36,33 @@
                         :params {:ids #(reduce (fn [item ids]
                                                  (conj ids (:modification_id item)))
                                                [] %)}}}}})
-(build-select db/vehicles (:select (utils.model/parse-query vehicle-model {} "test")))
+
+;(build-select db/vehicles (:select (utils.model/parse-query vehicle-model {} "test")))
 
 (def sel (:select (utils.model/parse-query vehicle-model
                                            {:filter {:id  [11 12 22 33]
                                                      :year 1999}
                                             :limit 5  :sort "-year"} "test")))
 
-(clojure.pprint/pprint (utils.model/parse-query vehicle-model {:filter {:id [1 2 3]} :limit 5 :sort "-year"} "test"))
+(clojure.pprint/pprint
+ (utils.model/parse-query vehicles
+                          {:filter {:id [1 2 3]} :limit 5 :sort "-year"} "test"))
 
-(kc/select db/vehicles
-           (kc/offset (:offset sel))
-           (kc/limit (:limit sel)))
+(utils.model/execute-query "w"
+                             vehicles
+                             {:filter {:id [1 2 3]} :limit 5 :sort "-year"})
 
-(apply str (interpose ", " (:fields sel)))
+(macroexpand-1 '(utils.model/execute-query "w"
+                             vehicles
+                             {:filter {:id [1 2 3]} :limit 5 :sort "-year"}))
 
-(macroexpand-1 '(build-select (:entity vehicle-model) sel))
+(comment (kc/select db/vehicles
+             (kc/offset (:offset sel))
+             (kc/limit (:limit sel)))
 
-(-> (kc/select* db/vehicles) (kc/where {:id [in [11 13]]}) (kc/select))
 
-(build-select db/vehicles sel)
+ (macroexpand-1 '(build-select (:entity vehicle-model) sel))
+
+ (-> (kc/select* db/vehicles) (kc/where {:id [in [11 13]]}) (kc/select))
+
+ (build-select db/vehicles sel))

@@ -59,7 +59,7 @@
 
 
 (defn send-message! [producer-chan session topic msg]
-;  (println ">>>>>>>>>>>>CHAN>SEND: " session topic msg)
+;  (println ">>>>>>>>>>>>CHAN>SEND: " session topic msg producer-chan)
   (>!! producer-chan {:topic topic :partition 0 :key session :value msg}))
 
 
@@ -77,7 +77,7 @@
                   (if (some? v)
                     (let [cr (poll! c)]
                       (doseq [msg (into [] cr)]
-                        (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
+;                        (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
                         (process-message handler {:message (:value msg)
                                                   :sid (:key msg)})))
                     (recur))))
@@ -95,7 +95,7 @@
             (let [[v ch] (async/alts!! [input-ch terminate-ch])]
               (if (identical? ch input-ch)
                 (if (some? v)
-                  (do (println ">>>>>>>>>>>KAFKA>SEND: ")
+                  (do ;(println ">>>>>>>>>>>KAFKA>SEND: ")
                       (send-sync! p (<!! producer-chan)) (recur))
                   ))))
           ))
@@ -110,7 +110,7 @@
         (while true
           (let [cr (poll! c)]
             (doseq [msg (into [] cr)]
-;              (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
+ ;             (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
               (process-message handler {:message (:value msg)
                                         :sid (:key msg)})))
           )))
@@ -120,10 +120,13 @@
   (async/thread
     (with-open [p producer]
       (while true
-;        (println ">>>>>>>>>>>KAFKA>SEND: ")
-        (send-sync! p (<!! producer-chan)))
+        (let [msg (<!! producer-chan)]
+;          (prn "message " msg)
+          (send-async! p msg)))
       )))
 
+(defprotocol PKafka
+  (send-msg! [component ^String sid ^String topic message]))
 
 (defrecord Kafka [consumer-config producer-config consumer-thread producer-thread producer-chan subscriptions handler]
   component/Lifecycle
@@ -141,11 +144,12 @@
     (async/close! consumer-thread)
     (println "Cannot stop Kafka Prozeß (yet)...")))
 
-(defprotocol KafkaProtocol
-  (send-msg! [component ^String sid ^String topic message]))
 
-(extend-protocol KafkaProtocol
+(extend-protocol PKafka
   Kafka
   (send-msg! [component sid topic message]
     (send-message! (:producer-chan component) sid topic message)
     component))
+
+(defn kafka [config]
+  (map->Kafka config))

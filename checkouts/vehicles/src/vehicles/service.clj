@@ -13,9 +13,11 @@
             [environ.core :refer [env]]
             [vehicles.db :as db]
             [vehicles.kafka :as k]
+            [vehicles.model :as model]
+            [utils.model :as um]
             [utils.kafka-service :as service]
             [clojure.java.io :as io]
-            [utils.interceptors :refer [request-session restrict-unauthorized token-auth]]
+            [utils.interceptors :refer [request-session restrict-unauthorized token-auth array-params]]
             [utils.schema
              [users :as users-schema]
              [common :as common-schema]
@@ -26,6 +28,8 @@
              [core :as api]
              [helpers :refer [before defbefore defhandler handler]]]
             [schema.core :as s]))
+
+
 
 
 (def create-vehicle
@@ -42,6 +46,74 @@
        (-> (response {:message "Vehicle created"
                       :data (db/create-vehicle vehicle user)})
            (status 201))))))
+
+(def get-vehicles
+  (handler
+   ::get-vehicles
+   {:summary "Get vehicles"
+    :responses {200 {:body {:data [vehicles-schema/VehicleOutput]
+                            (s/optional-key :included)
+                            {(s/optional-key :makes) [vehicles-schema/VehicleMakeOutput]
+                             (s/optional-key :models) [vehicles-schema/VehicleModelOutput]
+                             (s/optional-key :modifications) [vehicles-schema/VehicleModificationOutput]}}}}
+    :parameters {:query-params {(s/optional-key (keyword "filter[ids]")) [s/Int]
+                                (s/optional-key :fields) s/Str
+                                (s/optional-key :limit)  s/Int
+                                (s/optional-key :offset) s/Int
+                                (s/optional-key :sort) s/Str}}
+    :operationId :get-vehicles}
+   (fn [request]
+     (response (um/execute-select k/kafka-component model/vehicles
+                                  request)))))
+
+(def get-makes
+  (handler
+   ::get-makes
+   {:summary "Get vehicle makes"
+    :responses {200 {:body {:data [vehicles-schema/VehicleMakeOutput]}}}
+    :parameters {:query-params {(s/optional-key (keyword "filter[ids]")) [s/Int]
+                                (s/optional-key :fields) s/Str
+                                (s/optional-key :limit)  s/Int
+                                (s/optional-key :offset) s/Int
+                                (s/optional-key :sort) s/Str}}
+    :operationId :get-makes}
+   (fn [request]
+     (response (um/execute-select k/kafka-component model/vehicle-makes
+                                  request)))))
+(def get-models
+  (handler
+   ::get-models
+   {:summary "Get vehicle models"
+    :responses {200 {:body {:data [vehicles-schema/VehicleModelOutput]
+                            (s/optional-key :included)
+                            {(s/optional-key :makes) [vehicles-schema/VehicleModelOutput]}}}}
+    :parameters {:query-params {(s/optional-key (keyword "filter[ids]")) [s/Int]
+                                (s/optional-key :fields) s/Str
+                                (s/optional-key :limit)  s/Int
+                                (s/optional-key :offset) s/Int
+                                (s/optional-key :sort) s/Str}}
+    :operationId :get-models}
+   (fn [request]
+     (response (um/execute-select k/kafka-component model/vehicle-models
+                                  request)))))
+
+(def get-modifications
+  (handler
+   ::get-modifications
+   {:summary "Get vehicle modifications"
+    :responses {200 {:body {:data [vehicles-schema/VehicleModificationOutput]
+                            (s/optional-key :included)
+                            {(s/optional-key :makes) [vehicles-schema/VehicleMakeOutput]
+                             (s/optional-key :models) [vehicles-schema/VehicleModelOutput]}}}}
+    :parameters {:query-params {(s/optional-key (keyword "filter[ids]")) [s/Int]
+                                (s/optional-key :fields) s/Str
+                                (s/optional-key :limit)  s/Int
+                                (s/optional-key :offset) s/Int
+                                (s/optional-key :sort) s/Str}}
+    :operationId :get-modifications}
+   (fn [request]
+     (response (um/execute-select k/kafka-component model/vehicle-modifications
+                                  request)))))
 
 (def create-vehicle-make
   (handler
@@ -102,14 +174,19 @@
                            api/error-responses
                            (api/negotiate-response)
                            (api/body-params)
+                           array-params
                            api/common-body
                            (api/coerce-request)
                            (api/validate-response)
                            (api/doc {:tags ["vehicles"]})]
-       ["/vehicles"  {:post create-vehicle}
-        ["/models" {:post create-vehicle-model}]
-        ["/makes" {:post create-vehicle-make}]
-        ["/modifications" {:post create-vehicle-modification}]]
+       ["/vehicles"  {:post create-vehicle
+                      :get get-vehicles}
+        ["/models" {:post create-vehicle-model
+                    :get get-models}]
+        ["/makes" {:post create-vehicle-make
+                   :get get-makes}]
+        ["/modifications" {:post create-vehicle-modification
+                           :get get-modifications}]]
        ["/swagger.json" {:get api/swagger-json}]
        ["/*resource" {:get api/swagger-ui}]]]]))
 

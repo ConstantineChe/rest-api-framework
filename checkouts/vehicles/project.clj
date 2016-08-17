@@ -11,7 +11,7 @@
                  [utils "0.3.1-SNAPSHOT"]
                  [com.taoensso/carmine "2.13.1"]
                  [clj-redis-session "2.1.0"]
-                 [prismatic/schema "1.1.2"]
+                 [prismatic/schema "1.1.3"]
                  [environ "1.0.3"]
                  [midje "1.8.3"]
                  [ch.qos.logback/logback-classic "1.1.7" :exclusions [org.slf4j/slf4j-api]]
@@ -37,5 +37,6 @@
                           :db "carbook_vehicles_test"}
                     :aot :all
                     :dependencies [[io.pedestal/pedestal.service-tools "0.5.0" :exclusions [org.clojure/tools.reader]]]}
-             :uberjar {:aot [vehicles.server vehicles.kafka]}}
+             :uberjar {:aot :all}}
+  :aot [vehicles.config vehicles.kafka]
   :main ^{:skip-aot true} vehicles.server)

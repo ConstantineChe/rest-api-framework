@@ -1,60 +1,89 @@
 (ns utils.schema.vehicles
   (:require [schema.core :as s]))
 
-(defn req [key]
-  (s/required-key key))
 
-(defn opt [key]
-  (s/required-key key))
 
 (s/defschema Vehicle
-  {(req :id) s/Int
-   (opt :user_id) s/Int
-   (req :make_id) s/Int
-   (req :model_id) s/Int
-   (req :year) s/Int
-   (req :modification_id) s/Int
-   (req :registration_number) s/Str
-   (req :vin_code) s/Str
-   (req :enabled) s/Bool})
+  {(s/required-key :id) s/Int
+   (s/optional-key :user_id) s/Int
+   (s/required-key :make_id) s/Int
+   (s/required-key :model_id) s/Int
+   (s/required-key :year) s/Int
+   (s/required-key :modification_id) s/Int
+   (s/required-key :registration_number) s/Str
+   (s/required-key :vin_code) s/Str
+   (s/required-key :enabled) s/Bool})
 
 (s/defschema InputVehicle
-  {(req :user_id) s/Int
-   (req :make_id) s/Int
-   (req :model_id) s/Int
-   (req :year) s/Int
-   (req :modification_id) s/Int
-   (req :registration_number) s/Str
-   (req :vin_code) s/Str})
+  {(s/required-key :user_id) s/Int
+   (s/required-key :make_id) s/Int
+   (s/required-key :model_id) s/Int
+   (s/required-key :year) s/Int
+   (s/required-key :modification_id) s/Int
+   (s/required-key :registration_number) s/Str
+   (s/required-key :vin_code) s/Str})
 
 (s/defschema InputVehicleMake
-  {(req :name) s/Str})
+  {(s/required-key :name) s/Str})
 
 (s/defschema VehicleMake
-  {(req :id) s/Int
-   (req :name) s/Str
-   (req :enabled) s/Bool})
+  {(s/required-key :id) s/Int
+   (s/required-key :name) s/Str
+   (s/required-key :enabled) s/Bool})
 
 (s/defschema InputVehicleModel
-  {(req :name) s/Str
-   (req :make_id) s/Int})
+  {(s/required-key :name) s/Str
+   (s/required-key :make_id) s/Int})
 
 (s/defschema VehicleModel
-  {(req :id) s/Int
-   (req :name) s/Str
-   (req :make_id) s/Int
-   (req :enabled) s/Bool})
+  {(s/required-key :id) s/Int
+   (s/required-key :name) s/Str
+   (s/required-key :make_id) s/Int
+   (s/required-key :enabled) s/Bool})
 
 (s/defschema InputVehicleModification
-  {(req :name) s/Str
-   (req :made_from) s/Str
-   (req :made_until) s/Str
-   (req :model_id) s/Int})
+  {(s/required-key :name) s/Str
+   (s/required-key :made_from) s/Str
+   (s/required-key :made_until) s/Str
+   (s/required-key :model_id) s/Int})
 
 (s/defschema VehicleModification
-  {(req :id) s/Int
-   (req :name) s/Str
-   (req :made_from) s/Str
-   (req :made_until) s/Str
-   (req :model_id) s/Int
-   (req :enabled) s/Bool})
+  {(s/required-key :id) s/Int
+   (s/required-key :name) s/Str
+   (s/required-key :made_from) s/Str
+   (s/required-key :made_until) s/Str
+   (s/required-key :model_id) s/Int
+   (s/required-key :enabled) s/Bool})
+
+(s/defschema VehicleOutput
+  {(s/required-key :id) s/Int
+   (s/required-key :attrs)
+   {(s/optional-key :user_id) s/Int
+    (s/optional-key :make_id) s/Int
+    (s/optional-key :model_id) s/Int
+    (s/optional-key :year) s/Int
+    (s/optional-key :modification_id) s/Int
+    (s/optional-key :registration_number) s/Str
+    (s/optional-key :vin_code) s/Str
+    (s/optional-key :enabled) s/Bool}})
+
+(s/defschema VehicleMakeOutput
+  {(s/required-key :id) s/Int
+   (s/required-key :attrs)
+   {(s/optional-key :name) s/Str
+    (s/optional-key :enabled) s/Bool}})
+
+(s/defschema VehicleModelOutput
+  {(s/required-key :id) s/Int
+   (s/required-key :attrs)
+   {(s/optional-key :name) s/Str
+    (s/optional-key :make_id) s/Int
+    (s/optional-key :enabled) s/Bool}})
+
+(s/defschema VehicleModificationOutput
+  {(s/required-key :id) s/Int
+   (s/required-key :attrs)
+   {(s/optional-key :name) s/Str
+    (s/optional-key :made_from) java.util.Date
+    (s/optional-key :made_until) java.util.Date
+    (s/optional-key :model_id) s/Int}})

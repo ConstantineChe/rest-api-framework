@@ -35,4 +35,5 @@
                    :db "services"
                    :kafka-server "localhost:9091"}
              :uberjar {:aot [common.server]}}
+  :aot [common.config common.kafka common.server]
   :main ^{:skip-aot true} common.server)

@@ -16,4 +16,5 @@
   :profiles {:dev {:kafka-server "localhost:9091"
                    :db "carbook_scheduler"}
              :uberjar {:aot :all}}
+  :aot [scheduler.kafka]
   :main scheduler.core)

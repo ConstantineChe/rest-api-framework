@@ -31,6 +31,22 @@
                    (:user user)
                    nil))))))
 
+(def array-params
+  (interceptor/before
+   ::array-params
+   (fn [{:keys [request] :as context}]
+     (let [params (:query-params request)]
+       (assoc-in context [:request :query-params]
+                 (reduce-kv (fn [new-params key val]
+                              (if (re-find #"\[*\]" (name key))
+                                (let [[outer inner] (clojure.string/split (name key) #"\[")
+                                      outer (keyword outer)
+                                      inner (keyword (.substring inner 0 (dec (count inner))))]
+                                  (assoc-in new-params [outer inner] val))
+                                (merge new-params {key val})))
+                            {} params))))))
+
+
 (def restrict-unauthorized
   (interceptor/after
    ::restrict

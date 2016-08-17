@@ -42,5 +42,5 @@
                     :aot :all
                     :dependencies [[io.pedestal/pedestal.service-tools "0.5.0" :exclusions [org.clojure/tools.reader]]]}
              :uberjar {:aot :all}}
-  :aot [users.config]
+  :aot [users.config users.kafka]
   :main ^{:skip-aot true} users.server)

@@ -24,8 +24,12 @@
                  [org.slf4j/jul-to-slf4j "1.7.21"]
                  [org.slf4j/jcl-over-slf4j "1.7.21"]
                  [org.slf4j/log4j-over-slf4j "1.7.21"]]
+  :target-path "target/%s/"
   :plugins [[lein-localrepo "0.5.3"]]
+  :checkout-deps-shares ^:replace [:source-paths :resource-paths :compile-path
+                                   #=(eval leiningen.core.classpath/checkout-deps-paths)]
   :aot [utils.kafka-service
+        utils.model
         utils.db
         utils.cache
         utils.logger

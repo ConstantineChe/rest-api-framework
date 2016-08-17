@@ -1,48 +1,59 @@
 (ns vehicles.model
   (:require [vehicles.db :as db]
-            [vehicles.kafka :as k]
             [utils.schema.vehicles :as vs]
             [utils.model :as util]
             [korma.core :as kc]
-            [schema.core :as s]))
+            [cheshire.core :as json]))
 
-(defn select-ids [entity ids]
-  (vec (map utils.model/transform-entity
-         (kc/select entity (kc/where {:id [in ids]})))))
+
+
+(def vehicle-makes
+  {:entity `db/vehicle-makes
+   :default-order [:name :ASC]
+   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (vec (json/parse-string ids)))]
+                [:fields] [[:fields] (fn [fields] (util/string->array fields keyword))]}
+   :fields {:own #{:name}
+            :joins {}
+            :language-fields #{}
+            :external {}}})
+
+(def vehicle-models
+  {:entity `db/vehicle-models
+   :fks {:make_id :makes}
+   :default-order [:name :ASC]
+   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (vec (json/parse-string ids)))]
+                [:fields] [[:fields] (fn [fields] (util/string->array fields keyword))]}
+   :fields {:own #{:name :make_id}
+            :joins {:makes #(util/select-fks vehicle-makes :make_id %)}
+            :language-fields #{}
+            :external {}}})
+
+(def vehicle-modifications
+  {:entity `db/vehicle-modifications
+   :fks {:model_id :model}
+   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (vec (json/parse-string ids)))]
+                [:fields] [[:fields] (fn [fields] (util/string->array fields keyword))]}
+   :default-order [:name :ASC]
+   :fields {:own #{:name :made_from :made_until :model_id}
+            :joins {:models #(util/select-fks vehicle-models :model_id %)}
+            :language-fields #{}
+            :external {}}})
 
 (def vehicles
-  {:entity 'db/vehicles
-   :fields {:own #{:id :year :registration_number [:make_id :make] [:model_id :model]}
-            :joins {:makes #(select-ids db/vehicle-makes
-                                                  (reduce (fn [ids item]
-                                                            (conj ids (:make item)))
-                                                          [] %))
-                    :models #(select-ids db/vehicle-models
-                                                   (reduce (fn [ids item]
-                                                             (conj ids (:model item)))
-                                                           [] %))}
+  {:entity `db/vehicles
+   :fks {:make_id :makes
+         :model_id :models
+         :modification_id :modifications}
+   :default-order [:id :ASC]
+   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (vec (json/parse-string ids)))]
+                [:fields] [[:fields] (fn [fields] (util/string->array fields keyword))]}
+   :fields {:own #{:year :registration_number :make_id :model_id :modification_id}
+            :joins {:makes #(util/select-fks vehicle-makes :make_id %)
+                    :models #(util/select-fks vehicle-models :model_id %)}
             :language-fields #{}
-            :external {:modifications
-                       {:topic "vehicles"
-                        :operation :modifications
-                        :params {:ids #(reduce (fn [item ids]
-                                                 (conj ids (:modification_id item)))
-                                               [] %)}}}}})
-
-(clojure.pprint/pprint
- (utils.model/parse-query* vehicles
-                           {:fields [:id :model :make :registration_number
-                                      :vin_code :year]
-                             :filter {:id (vec (range 10))}
-                             :limit 5 :sort "-year"}
-                           "test"))
-;clojure.pprint/pprint
-;macroexpand-1
-
-(clojure.pprint/pprint
- (utils.model/execute-query "w"
-                              vehicles
-                              {:fields [:id :model :make :registration_number
-                                        :vin_code :year]
-                               :filter {:id (vec (range 10))}
-                               :limit 5 :sort "-year"}))
+            :externals {:modifications
+                        {:topic "vehicles"
+                         :from "vehicles"
+                         :operation :include-modifications
+                         :params {:ids #(set (map (fn [item]
+                                                 (:modification_id item)) %))}}}}})

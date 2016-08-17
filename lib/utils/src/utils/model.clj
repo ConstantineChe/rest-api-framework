@@ -67,8 +67,12 @@
                                   (:filter query)))
               :limit (:limit query)
               :offset (:offset query)}
-     :joins (if fields (select-keys (:joins model-fields) (filter identity (map #(% (:fks model)) fields)))
-                (:joins model-fields))
+     :joins (reduce-kv (fn [joins k v]
+                         (merge joins {k {:fn v
+                                          :chan (async/chan)}}))
+                       {}
+                       (if fields (select-keys (:joins model-fields) (filter identity (map #(% (:fks model)) fields)))
+                           (:joins model-fields)))
      :externals (reduce-kv (fn [included key req]
                             (let [sid (keyword (str sid "-" (:topic req) "-" (name (:operation req))))
                                   chan (k/get-chan! sid)]
@@ -107,17 +111,22 @@
                                        (merge params {key (val data)}))
                                      {} (:params (k (:externals (:fields model)))))})))
 
+(defn join-fields [joins data]
+  (doseq [[k v] joins]
+    (async/go (>! (:chan v) ((:fn v) data)))))
+
 
 (defn execute-select [service model req]
   (let [query (parse-query model (:query-params req) (:session-id req))
         data (build-select (:entity model) (:select query))]
-    (kafka-request service (:externals query) model data)
+    (async/go (join-fields (:joins query) data)
+              (kafka-request service (:externals query) model data))
     (merge {:data (vec (map transform-entity data))}
                   (if (some (complement empty?) [(:joins query) (:externals query)])
                     {:included (merge (if (:joins query)
                                         (reduce-kv (fn [joins k v]
                                                      (merge joins
-                                                            {k (v data)}))
+                                                            {k (<!! (:chan v))}))
                                                    {} (:joins query)))
                                       (if (:externals query)
                                         (reduce-kv (fn [externals k v]

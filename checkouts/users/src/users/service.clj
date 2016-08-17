@@ -15,6 +15,8 @@
             [users.session :as session]
             [users.db :as db]
             [users.kafka :as k]
+            [users.model :as model]
+            [utils.model :as um]
             [utils.kafka-service :as service]
             [clojure.java.io :as io]
             [users.social-login :as social]
@@ -162,6 +164,17 @@
          (-> (response {:message (:message @vehicles-response)})
              (status 400)))))))
 
+(def my-vehicles
+  (handler
+   ::my-vehicles
+   {:summary "Get user's vehicles"
+    :responses {200 {:body s/Any}}
+    :parameters {}
+    :operationId :my-vehicles}
+   (fn [{params :body-params user :user :as request}]
+     (response (um/execute-select k/kafka-component model/my-vehicles
+                                  request)))))
+
 (def change-current-vehicle
   (handler
    ::change-current-vehicle
@@ -304,9 +317,10 @@
                            (api/coerce-request)
                            (api/validate-response)
                            (api/doc {:tags ["users"]})]
-       ["/my" ^:interceptors [restrict-unauthorized]
+       ["/my" ;^:interceptors [restrict-unauthorized]
         ["/vehicles"
-         {:post create-vehicle
+         {:get my-vehicles
+          :post create-vehicle
           :delete delete-vehicle}]
         ["/change-current-vehicle" {:put change-current-vehicle}]]
        ["/users" ;^:interceptors [restrict-unauthorized]

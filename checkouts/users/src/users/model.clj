@@ -14,3 +14,21 @@
             :joins {}
             :language-fields #{}
             :external {}}})
+
+(def my-vehicles
+  {:data (fn [request] {:id -1 :vehicles [1 2 3 4 5]})
+   :fields {:externals {:modifications
+                       {:topic "vehicles"
+                        :from "users"
+                        :operation :include-modifications
+                        :params {:ids #(-> :data first :attrs :vehicles)}}
+                       :models
+                       {:topic "vehicles"
+                        :from "users"
+                        :operation :include-models
+                        :params {:ids #(-> :data first :attrs :vehicles)}}
+                       :makes
+                       {:topic "vehicles"
+                        :from "users"
+                        :operation :include-makes
+                        :params {:ids #(-> :data first :attrs :vehicles)}}}}})

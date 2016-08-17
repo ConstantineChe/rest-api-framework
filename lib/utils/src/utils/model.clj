@@ -24,8 +24,10 @@
 
 
 (defn transform-entity [entity]
-  {:id (:id entity)
-   :attrs (dissoc entity :id)})
+  (if (map? entity)
+    {:id (:id entity)
+     :attrs (dissoc entity :id)}
+    (into {} entity)))
 
 (defn normalize-query [query query-map]
   (reduce-kv (fn [query key [new-key f]]
@@ -43,44 +45,50 @@
         external-fields (:externals model-fields)
         own-fields (set/union (:language-fields model-fields)
                               (:own model-fields))]
-    {:select {:fields (vec (into #{:id}
-                                   (map (fn [field]
-                                          (if ((:language-fields model-fields) field)
-                                               (kc/raw (str (name field) "->>'EN' AS "
-                                                            (name field)))
-                                               field))
-                                        (if fields
-                                          (filter
-                                           (fn [fld]
-                                                (if (vector? fld) ((set fields) (second fld))
-                                                    ((set fields) fld)))
-                                           own-fields)
-                                          own-fields))))
-              :order (if (:sort query) (sort-query (:sort query)) (:default-order model))
-              :where (if (:filter query)
-                       (reduce-kv (fn [where k v]
-                                    (merge where
-                                           {k (if (sequential? v)
-                                                `['(symbol "in") ~v]
-                                                v)}))
-                                  {}
-                                  (:filter query)))
-              :limit (:limit query)
-              :offset (:offset query)}
-     :joins (reduce-kv (fn [joins k v]
-                         (merge joins {k {:fn v
-                                          :chan (async/chan)}}))
-                       {}
-                       (if fields (select-keys (:joins model-fields) (filter identity (map #(% (:fks model)) fields)))
-                           (:joins model-fields)))
-     :externals (reduce-kv (fn [included key req]
-                            (let [sid (keyword (str sid "-" (:topic req) "-" (name (:operation req))))
-                                  chan (k/get-chan! sid)]
-                              (merge included {key sid})))
-                       {}
-                       (if fields
-                         (select-keys external-fields (filter identity (map #(% (:fks model)) fields)))
-                          external-fields))}))
+    (merge {}
+           (if (:entity model)
+             {:select {:fields (vec (into #{:id}
+                                          (map (fn [field]
+                                                 (if ((:language-fields model-fields) field)
+                                                        (kc/raw (str (name field) "->>'EN' AS "
+                                                                     (name field)))
+                                                        field))
+                                               (if fields
+                                                 (filter
+                                                  (fn [fld]
+                                                    (if (vector? fld) ((set fields) (second fld))
+                                                        ((set fields) fld)))
+                                                  own-fields)
+                                                 own-fields))))
+                       :order (if (:sort query) (sort-query (:sort query)) (:default-order model))
+                       :where (if (:filter query)
+                                (reduce-kv (fn [where k v]
+                                             (merge where
+                                                    {k (if (sequential? v)
+                                                         `['(symbol "in") ~v]
+                                                         v)}))
+                                           {}
+                                           (:filter query)))
+                       :limit (:limit query)
+                       :offset (:offset query)}
+              :joins (reduce-kv (fn [joins k v]
+                                  (merge joins {k {:fn v
+                                                   :chan (async/chan)}}))
+                                {}
+                                (if fields (select-keys (:joins model-fields) (filter identity (map #(% (:fks model)) fields)))
+                                    (:joins model-fields)))})
+           (if-let [data-fn (:data model)]
+             {:data (data-fn query)})
+           (if external-fields
+             {:externals (reduce-kv (fn [included key req]
+                                      (let [sid (keyword (str sid "-" (:topic req) "-" (name (:operation req))))
+                                            chan (k/get-chan! sid)]
+                                        (merge included {key {:sid sid
+                                                              :chan chan}})))
+                                    {}
+                                    (if fields
+                                      (select-keys external-fields (filter identity (map #(% (:fks model)) fields)))
+                                      external-fields))}))))
 
 (defn select-fks [model key data]
   (let [ids (set (map (fn [item] (key item)) data))
@@ -103,7 +111,7 @@
 
 (defn kafka-request [service query-externals model data]
   (doseq [[k v] query-externals]
-    (k/send-msg! service v (-> model :fields :externals k :topic)
+    (k/send-msg! service (:sid v) (-> model :fields :externals k :topic)
                  {:type :request
                   :from (-> model :fields :externals k :from)
                   :operation (-> model :fields :externals k :operation)
@@ -118,10 +126,14 @@
 
 (defn execute-select [service model req]
   (let [query (parse-query model (:query-params req) (:session-id req))
-        data (build-select (:entity model) (:select query))]
+        data (if (:select query)
+               (build-select (:entity model) (:select query))
+               (:data query))]
+    (prn query)
     (async/go (join-fields (:joins query) data)
               (kafka-request service (:externals query) model data))
-    (merge {:data (vec (map transform-entity data))}
+    (merge {:data (if (sequential? data) (vec (map transform-entity data))
+                      [(transform-entity data)])}
                   (if (some (complement empty?) [(:joins query) (:externals query)])
                     {:included (merge (if (:joins query)
                                         (reduce-kv (fn [joins k v]
@@ -131,5 +143,5 @@
                                       (if (:externals query)
                                         (reduce-kv (fn [externals k v]
                                                      (merge externals
-                                                            {k (<!! (k/get-chan! v))}))
+                                                            {k (<!! (:chan v))}))
                                                    {} (:externals query))))}))))

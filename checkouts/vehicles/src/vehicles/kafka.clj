@@ -48,5 +48,25 @@
                                    :from "vehicles"
                                    :data modifications})))
 
+(defmethod process-request :include-makes [{:keys [message sid]}]
+  (let [{:keys [ids]} (:params message)
+        makes (um/select-ids model/vehicle-makes ids)]
+    (produce! sid (:from message) {:type :response
+                                   :from "vehicles"
+                                   :data makes})))
+
+(defmethod process-request :include-models [{:keys [message sid]}]
+  (let [{:keys [ids]} (:params message)
+        models (um/select-ids model/vehicle-models ids)]
+    (produce! sid (:from message) {:type :response
+                                   :from "vehicles"
+                                   :data models})))
+(defmethod process-request :include-vehicles [{:keys [message sid]}]
+  (let [{:keys [ids]} (:params message)
+        vehicles (um/select-ids model/vehicles ids)]
+    (produce! sid (:from message) {:type :response
+                                   :from "vehicles"
+                                   :data vehicles})))
+
 (defmethod process-request :default [msg]
   (println "Invalid request operation: " (-> msg :message :operation)))

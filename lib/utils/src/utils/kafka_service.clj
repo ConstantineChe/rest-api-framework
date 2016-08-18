@@ -111,8 +111,8 @@
           (let [cr (poll! c)]
             (doseq [msg (into [] cr)]
  ;             (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
-              (process-message handler {:message (:value msg)
-                                        :sid (:key msg)})))
+              (async/go (process-message handler {:message (:value msg)
+                                                  :sid (:key msg)}))))
           )))
     ))
 

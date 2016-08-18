@@ -129,11 +129,9 @@
         data (if (:select query)
                (build-select (:entity model) (:select query))
                (:data query))]
-    (prn query)
     (async/go (join-fields (:joins query) data)
               (kafka-request service (:externals query) model data))
-    (merge {:data (if (sequential? data) (vec (map transform-entity data))
-                      [(transform-entity data)])}
+    (merge {:data (vec (map transform-entity data))}
                   (if (some (complement empty?) [(:joins query) (:externals query)])
                     {:included (merge (if (:joins query)
                                         (reduce-kv (fn [joins k v]

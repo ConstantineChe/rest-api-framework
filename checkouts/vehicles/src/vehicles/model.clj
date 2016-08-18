@@ -48,8 +48,12 @@
    :map-params {[:filter :ids] [[:filter :id] (fn [ids] (vec (json/parse-string ids)))]
                 [:fields] [[:fields] (fn [fields] (util/string->array fields keyword))]}
    :fields {:own #{:year :registration_number :make_id :model_id :modification_id}
-            :joins {:makes #(util/select-fks vehicle-makes :make_id %)
-                    :models #(util/select-fks vehicle-models :model_id %)}
+            :joins {:makes {:fk :make_id
+                            :model vehicle-makes
+                            :query {:sort "name"}}
+                    :models {:fk :model_id
+                             :model vehicle-models
+                             :query {:sort "-id"}}}
             :language-fields #{}
             :externals {:modifications
                         {:topic "vehicles"

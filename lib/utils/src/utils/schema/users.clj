@@ -1,6 +1,6 @@
 (ns utils.schema.users
   (:require [schema.core :as s]
-            [utils.schema :refer [opt req]]))
+            [utils.schema :as us :refer [opt req api-response]]))
 
 (s/defschema InputUser
   {(req :name) s/Str

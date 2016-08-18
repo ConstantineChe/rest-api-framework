@@ -22,19 +22,20 @@
                        {:topic "vehicles"
                         :from "users"
                         :operation :include-vehicles
-                        :params {:ids #(-> % first :vehicles)}}
+                        :params {:filter (fn [data] {:id (-> data first :vehicles)})
+                                 :sort "-id"}}
                         :modifications
                        {:topic "vehicles"
                         :from "users"
                         :operation :include-modifications
-                        :params {:ids #(-> % first :vehicles)}}
+                        :params {:filter (fn [data] {:id (-> data first :vehicles)})}}
                        :models
                        {:topic "vehicles"
                         :from "users"
                         :operation :include-models
-                        :params {:ids #(-> % first :vehicles)}}
+                        :params {:filter (fn [data] {:id (-> data first :vehicles)})}}
                        :makes
                        {:topic "vehicles"
                         :from "users"
                         :operation :include-makes
-                        :params {:ids #(-> % first :vehicles)}}}}})
+                        :params {:filter (fn [data] {:id (-> data first :vehicles)})}}}}})

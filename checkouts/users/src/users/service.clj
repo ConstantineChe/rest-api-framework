@@ -21,6 +21,7 @@
             [clojure.java.io :as io]
             [users.social-login :as social]
             [utils.interceptors :refer [request-session restrict-unauthorized]]
+            [utils.schema :as us]
             [utils.schema
              [users :as user-schema]
              [common :as common-schema]
@@ -168,7 +169,13 @@
   (handler
    ::my-vehicles
    {:summary "Get user's vehicles"
-    :responses {200 {:body s/Any}}
+    :responses {200 {:body (us/api-response {:id s/Int
+                                             :attrs
+                                             {:vehicles [s/Int]}}
+                                            {:vehicles vehicles-schema/VehicleOutput
+                                             :makes vehicles-schema/VehicleMakeOutput
+                                             :models vehicles-schema/VehicleModelOutput
+                                             :modifications vehicles-schema/VehicleModificationOutput})}}
     :parameters {}
     :operationId :my-vehicles}
    (fn [{params :body-params user :user :as request}]

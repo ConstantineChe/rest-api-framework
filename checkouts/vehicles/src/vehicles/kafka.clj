@@ -6,6 +6,7 @@
             [vehicles.model :as model]
             [utils.model :as um]
             [schema.core :as s]
+            [io.pedestal.log :as log]
             [clojure.core.async :as async])
 )
 
@@ -42,28 +43,29 @@
                                    :data {:vehicle vehicle :status (if vehicle "success" "failed")}})))
 
 (defmethod process-request :include-modifications [{:keys [message sid]}]
-  (let [{:keys [ids]} (:params message)
-        modifications (um/select-ids model/vehicle-modifications ids)]
+  (let [params (:params message)
+        modifications (um/select-ids {:model model/vehicle-modifications :query params :sid sid})]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data modifications})))
 
 (defmethod process-request :include-makes [{:keys [message sid]}]
-  (let [{:keys [ids]} (:params message)
-        makes (um/select-ids model/vehicle-makes ids)]
+  (let [params (:params message)
+        makes (um/select-ids {:model model/vehicle-makes :query params :sid sid})]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data makes})))
 
 (defmethod process-request :include-models [{:keys [message sid]}]
-  (let [{:keys [ids]} (:params message)
-        models (um/select-ids model/vehicle-models ids)]
+  (let [params (:params message)
+        models (um/select-ids {:model model/vehicle-models :query params :sid sid})]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data models})))
+
 (defmethod process-request :include-vehicles [{:keys [message sid]}]
-  (let [{:keys [ids]} (:params message)
-        vehicles (um/select-ids model/vehicles ids)]
+  (let [params (:params message)
+        vehicles (um/select-ids {:model model/vehicles :query params :sid sid})]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data vehicles})))

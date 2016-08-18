@@ -18,6 +18,7 @@
             [utils.kafka-service :as service]
             [clojure.java.io :as io]
             [utils.interceptors :refer [request-session restrict-unauthorized token-auth array-params]]
+            [utils.schema :as us]
             [utils.schema
              [users :as users-schema]
              [common :as common-schema]
@@ -51,11 +52,10 @@
   (handler
    ::get-vehicles
    {:summary "Get vehicles"
-    :responses {200 {:body {:data [vehicles-schema/VehicleOutput]
-                            (s/optional-key :included)
-                            {(s/optional-key :makes) [vehicles-schema/VehicleMakeOutput]
-                             (s/optional-key :models) [vehicles-schema/VehicleModelOutput]
-                             (s/optional-key :modifications) [vehicles-schema/VehicleModificationOutput]}}}}
+    :responses {200 {:body (us/api-response vehicles-schema/VehicleOutput
+                                            {:makes vehicles-schema/VehicleMakeOutput
+                                             :models vehicles-schema/VehicleModelOutput
+                                             :modifications vehicles-schema/VehicleModificationOutput})}}
     :parameters {:query-params {(s/optional-key (keyword "filter[ids]")) [s/Int]
                                 (s/optional-key :fields) s/Str
                                 (s/optional-key :limit)  s/Int
@@ -63,8 +63,7 @@
                                 (s/optional-key :sort) s/Str}}
     :operationId :get-vehicles}
    (fn [request]
-     (response (um/execute-select k/kafka-component model/vehicles
-                                  request)))))
+     (response (um/execute-select k/kafka-component model/vehicles request)))))
 
 (def get-makes
   (handler
@@ -78,15 +77,14 @@
                                 (s/optional-key :sort) s/Str}}
     :operationId :get-makes}
    (fn [request]
-     (response (um/execute-select k/kafka-component model/vehicle-makes
-                                  request)))))
+     (response (um/execute-select k/kafka-component model/vehicle-makes request)))))
+
 (def get-models
   (handler
    ::get-models
    {:summary "Get vehicle models"
-    :responses {200 {:body {:data [vehicles-schema/VehicleModelOutput]
-                            (s/optional-key :included)
-                            {(s/optional-key :makes) [vehicles-schema/VehicleModelOutput]}}}}
+    :responses {200 {:body (us/api-response vehicles-schema/VehicleModelOutput
+                                            {:makes vehicles-schema/VehicleModelOutput})}}
     :parameters {:query-params {(s/optional-key (keyword "filter[ids]")) [s/Int]
                                 (s/optional-key :fields) s/Str
                                 (s/optional-key :limit)  s/Int
@@ -94,17 +92,15 @@
                                 (s/optional-key :sort) s/Str}}
     :operationId :get-models}
    (fn [request]
-     (response (um/execute-select k/kafka-component model/vehicle-models
-                                  request)))))
+     (response (um/execute-select k/kafka-component model/vehicle-models request)))))
 
 (def get-modifications
   (handler
    ::get-modifications
    {:summary "Get vehicle modifications"
-    :responses {200 {:body {:data [vehicles-schema/VehicleModificationOutput]
-                            (s/optional-key :included)
-                            {(s/optional-key :makes) [vehicles-schema/VehicleMakeOutput]
-                             (s/optional-key :models) [vehicles-schema/VehicleModelOutput]}}}}
+    :responses {200 {:body (us/api-response vehicles-schema/VehicleModificationOutput
+                                            {:makes vehicles-schema/VehicleMakeOutput
+                                             :models vehicles-schema/VehicleModelOutput})}}
     :parameters {:query-params {(s/optional-key (keyword "filter[ids]")) [s/Int]
                                 (s/optional-key :fields) s/Str
                                 (s/optional-key :limit)  s/Int

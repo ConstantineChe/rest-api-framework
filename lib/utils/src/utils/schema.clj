@@ -1,11 +1,19 @@
 (ns utils.schema
   (:require [schema.core :as s]))
 
-(defn opt [key]
-  (s/optional-key key))
+(defmacro opt [key]
+  `(s/optional-key ~key))
 
-(defn req [key]
-  (s/required-key key))
+(defmacro req [key]
+  `(s/required-key ~key))
+
+(defn api-response [entity includes]
+  {:data [entity]
+   (s/optional-key :included)
+   (reduce-kv (fn [included k v]
+                (merge included
+                       {(s/optional-key k) [v]}))
+              {} includes)})
 
 (defmacro KafkaRequest [name params]
   `(s/defschema ~name

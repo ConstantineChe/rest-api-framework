@@ -63,7 +63,7 @@
                                 (s/optional-key :sort) s/Str}}
     :operationId :get-vehicles}
    (fn [request]
-     (response (um/execute-select k/kafka-component model/vehicles request)))))
+     (response (um/execute-select k/kafka-component model/vehicles request true)))))
 
 (def get-makes
   (handler
@@ -77,7 +77,7 @@
                                 (s/optional-key :sort) s/Str}}
     :operationId :get-makes}
    (fn [request]
-     (response (um/execute-select k/kafka-component model/vehicle-makes request)))))
+     (response (um/execute-select k/kafka-component model/vehicle-makes request true)))))
 
 (def get-models
   (handler
@@ -92,7 +92,7 @@
                                 (s/optional-key :sort) s/Str}}
     :operationId :get-models}
    (fn [request]
-     (response (um/execute-select k/kafka-component model/vehicle-models request)))))
+     (response (um/execute-select k/kafka-component model/vehicle-models request true)))))
 
 (def get-modifications
   (handler
@@ -108,8 +108,7 @@
                                 (s/optional-key :sort) s/Str}}
     :operationId :get-modifications}
    (fn [request]
-     (response (um/execute-select k/kafka-component model/vehicle-modifications
-                                  request)))))
+     (response (um/execute-select k/kafka-component model/vehicle-modifications request true)))))
 
 (def create-vehicle-make
   (handler

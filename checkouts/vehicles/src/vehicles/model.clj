@@ -10,7 +10,7 @@
 (def vehicle-makes
   {:entity `db/vehicle-makes
    :default-order [:name :ASC]
-   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (vec (json/parse-string ids)))]
+   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (if (string? ids) (vec (json/parse-string ids)) ids))]
                 [:fields] [[:fields] (fn [fields] (util/string->array fields keyword))]}
    :fields {:own #{:name}
             :joins {}
@@ -21,21 +21,27 @@
   {:entity `db/vehicle-models
    :fks {:make_id :makes}
    :default-order [:name :ASC]
-   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (vec (json/parse-string ids)))]
+   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (if (string? ids) (vec (json/parse-string ids)) ids))]
                 [:fields] [[:fields] (fn [fields] (util/string->array fields keyword))]}
    :fields {:own #{:name :make_id}
-            :joins {:makes #(util/select-fks vehicle-makes :make_id %)}
+            :joins {:makes {:fk :make_id
+                            :cache "makes"
+                            :model vehicle-makes
+                            :query {:sort "name"}}}
             :language-fields #{}
             :external {}}})
 
 (def vehicle-modifications
   {:entity `db/vehicle-modifications
    :fks {:model_id :model}
-   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (vec (json/parse-string ids)))]
+   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (if (string? ids) (vec (json/parse-string ids)) ids))]
                 [:fields] [[:fields] (fn [fields] (util/string->array fields keyword))]}
    :default-order [:name :ASC]
    :fields {:own #{:name :made_from :made_until :model_id}
-            :joins {:models #(util/select-fks vehicle-models :model_id %)}
+            :joins {:models {:fk :model_id
+                             :cache "models"
+                             :model vehicle-models
+                             :query {:sort "-id"}}}
             :language-fields #{}
             :external {}}})
 
@@ -45,19 +51,22 @@
          :model_id :models
          :modification_id :modifications}
    :default-order [:id :ASC]
-   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (vec (json/parse-string ids)))]
+   :map-params {[:filter :ids] [[:filter :id] (fn [ids] (if (string? ids) (vec (json/parse-string ids)) ids))]
                 [:fields] [[:fields] (fn [fields] (util/string->array fields keyword))]}
    :fields {:own #{:year :registration_number :make_id :model_id :modification_id}
             :joins {:makes {:fk :make_id
+                            :cache "makes"
                             :model vehicle-makes
                             :query {:sort "name"}}
                     :models {:fk :model_id
+                             :cache "models"
                              :model vehicle-models
                              :query {:sort "-id"}}}
             :language-fields #{}
             :externals {:modifications
                         {:topic "vehicles"
                          :from "vehicles"
+                         :cache "modifications"
                          :operation :include-modifications
-                         :params {:ids #(set (map (fn [item]
-                                                 (:modification_id item)) %))}}}}})
+                         :params {:filter (fn [data] {:id (set (map (fn [item]
+                                                                     (:modification_id item)) data))})}}}}})

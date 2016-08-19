@@ -1,6 +1,7 @@
 (ns utils.model
   (:require [korma.core :as kc]
             [utils.kafka-service :as k]
+            [utils.cache :as cache :refer [with-cache]]
             [schema.core :as s]
             [clojure.set :as set]
             [io.pedestal.log :as log]
@@ -22,7 +23,6 @@
                            (if (eval `(:limit ~query)) `(kc/limit ~(eval `(:limit ~query))))
                            (if (eval `(:order ~query)) `(kc/order ~@(eval `(:order ~query))))]))))
 
-
 (defn transform-entity [entity]
   {:id (:id entity)
    :attrs (dissoc entity :id)})
@@ -35,6 +35,12 @@
                        (assoc-in new-key (f val)))
                    query)))
              query query-map))
+
+(defn params->key [tag params]
+  (log/info :tag tag :params params)
+  (if (set? params) (apply str ":" tag ":" params)
+      (apply str ":" tag ":" (:limit params) (:offset params)
+             (map (fn [[k v]] (apply str v)) (:filter params)))))
 
 (defn query-select [query model]
   (let [fields (:fields query)
@@ -83,8 +89,11 @@
     (reduce-kv (fn [included key req]
                  (let [sid (keyword (str sid "-" (:topic req) "-" (name (:operation req))))
                        chan (k/get-chan! sid)]
-                   (merge included {key {:sid sid
-                                         :chan chan}})))
+                   (log/info :kparams query)
+                   (merge included {key (merge {:sid sid
+                                                :chan chan}
+                                               (if (:cache req)
+                                                 {:cache (params->key (:cache req) query)}))})))
                {}
                (if fields
                  (select-keys external-fields (filter identity (map #(% (:fks model)) fields)))
@@ -108,11 +117,6 @@
     (vec (map transform-entity
               (build-select (:entity model) (:select query))))))
 
-(defn select-fks [{:keys [model fk data query]}]
-  (let [ids (set (map #(fk %) data))]
-    (select-ids {:model model :ids ids :query query})))
-
-
 (defn string->array [value transform]
   (cond (vector? value)
         value
@@ -120,32 +124,37 @@
         (vec value)
         (string? value)
         (let [array (str/split value #",")]
-             (vec (set (map transform array))))))
+          (vec (set (map transform array))))))
 
 (defn kafka-request [service query-externals model data]
   (doseq [[k v] query-externals]
-    (k/send-msg! service (:sid v) (-> model :fields :externals k :topic)
-                 {:type :request
-                  :from (-> model :fields :externals k :from)
-                  :operation (-> model :fields :externals k :operation)
-                  :params (reduce-kv (fn [params key val]
-                                       (merge params {key (if (fn? val) (val data) val)}))
-                                     {} (:params (k (:externals (:fields model)))))})))
+    (if-not (with-cache (:cache v) nil)
+      (k/send-msg! service (:sid v) (-> model :fields :externals k :topic)
+                   {:type :request
+                    :from (-> model :fields :externals k :from)
+                    :operation (-> model :fields :externals k :operation)
+                    :params (reduce-kv (fn [params key val]
+                                         (merge params {key (if (fn? val) (val data) val)}))
+                                       {} (:params (k (:externals (:fields model)))))}))))
 
 (defn join-fields [joins data]
-  (doseq [[k v] joins]
-    (async/go (>! (:chan v) (select-fks (assoc (:params v) :data data))))))
+  (doseq [[k {:keys [chan params]}] joins]
+    (async/go (let [ids (set (map #((:fk params) %) data))
+                    params (assoc-in params [:query :filter :ids] ids)]
+                (log/info :params params)
+                (>! chan (with-cache (params->key (:cache params) ids)
+                           (select-ids params)))))))
 
 
-(defn execute-select [service model req]
+(defn execute-select [service model req include?]
   (let [query (parse-query model (:query-params req) (:session-id req))
         data (if (:select query)
                (build-select (:entity model) (:select query))
                (:data query))]
-    (async/go (join-fields (:joins query) data)
-              (kafka-request service (:externals query) model data))
+    (if include? (async/go (join-fields (:joins query) data)
+                           (kafka-request service (:externals query) model data)))
     (merge {:data (vec (map transform-entity data))}
-           (if (some (complement empty?) [(:joins query) (:externals query)])
+           (if (and include? (some (complement empty?) [(:joins query) (:externals query)]))
              {:included (merge (if (:joins query)
                                  (reduce-kv (fn [joins k v]
                                               (merge joins
@@ -154,5 +163,5 @@
                                (if (:externals query)
                                  (reduce-kv (fn [externals k v]
                                               (merge externals
-                                                     {k (<!! (:chan v))}))
+                                                     {k (with-cache (:cache v) (<!! (:chan v)))}))
                                             {} (:externals query))))}))))

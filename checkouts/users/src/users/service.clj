@@ -179,8 +179,7 @@
     :parameters {}
     :operationId :my-vehicles}
    (fn [{params :body-params user :user :as request}]
-     (response (um/execute-select k/kafka-component model/my-vehicles
-                                  request)))))
+     (response (um/execute-select k/kafka-component model/my-vehicles request true)))))
 
 (def change-current-vehicle
   (handler

@@ -37,10 +37,11 @@
              query query-map))
 
 (defn params->key [tag params]
-  (log/info :tag tag :params params)
-  (if (set? params) (apply str ":" tag ":" params)
+  (if (set? params) (apply str ":" tag ":" (interpose "," params))
       (apply str ":" tag ":" (:limit params) (:offset params)
-             (map (fn [[k v]] (apply str v)) (:filter params)))))
+             (map (fn [[k v]] (apply str (if (sequential? v)
+                                          (interpose "," v) v)))
+                  (:filter params)))))
 
 (defn query-select [query model]
   (let [fields (:fields query)
@@ -89,7 +90,6 @@
     (reduce-kv (fn [included key req]
                  (let [sid (keyword (str sid "-" (:topic req) "-" (name (:operation req))))
                        chan (k/get-chan! sid)]
-                   (log/info :kparams query)
                    (merge included {key (merge {:sid sid
                                                 :chan chan}
                                                (if (:cache req)
@@ -128,7 +128,7 @@
 
 (defn kafka-request [service query-externals model data]
   (doseq [[k v] query-externals]
-    (if-not (with-cache (:cache v) nil)
+    (if-not (cache/get-cache (:cache v))
       (k/send-msg! service (:sid v) (-> model :fields :externals k :topic)
                    {:type :request
                     :from (-> model :fields :externals k :from)
@@ -141,7 +141,6 @@
   (doseq [[k {:keys [chan params]}] joins]
     (async/go (let [ids (set (map #((:fk params) %) data))
                     params (assoc-in params [:query :filter :ids] ids)]
-                (log/info :params params)
                 (>! chan (with-cache (params->key (:cache params) ids)
                            (select-ids params)))))))
 

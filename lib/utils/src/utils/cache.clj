@@ -30,3 +30,6 @@
                (list `wcar* (list `car/set key value)
                      (list `car/expire key (list `* 60 60)))
                value))))
+
+(defn get-cache [key]
+  (wcar* (car/get key)))

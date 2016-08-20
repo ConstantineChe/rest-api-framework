@@ -38,10 +38,7 @@
 
 (defn params->key [tag params]
   (if (set? params) (apply str ":" tag ":" (interpose "," params))
-      (apply str ":" tag ":" (:limit params) (:offset params)
-             (map (fn [[k v]] (apply str (if (sequential? v)
-                                          (interpose "," v) v)))
-                  (:filter params)))))
+      (apply str ":" tag ":" params)))
 
 (defn query-select [query model]
   (let [fields (:fields query)
@@ -84,36 +81,41 @@
                (if fields (select-keys model-joins (filter identity (map #(% (:fks model)) fields)))
                    model-joins))))
 
-(defn query-externals [query model sid]
+(defn query-externals [query model sid data]
   (let [fields (:fields query)
         external-fields (-> model :fields :externals)]
     (reduce-kv (fn [included key req]
                  (let [sid (keyword (str sid "-" (:topic req) "-" (name (:operation req))))
-                       chan (k/get-chan! sid)]
-                   (merge included {key (merge {:sid sid
-                                                :chan chan}
-                                               (if (:cache req)
-                                                 {:cache (params->key (:cache req) query)}))})))
+                       chan (k/get-chan! sid)
+                       key-source (if data data query)]
+                   (merge included
+                          {key (merge {:sid sid
+                                       :chan chan}
+                                      (if (:cache req)
+                                        {:cache (params->key (:cache req) key-source)}))})))
                {}
                (if fields
                  (select-keys external-fields (filter identity (map #(% (:fks model)) fields)))
                  external-fields))))
 
-(defn parse-query [model query sid]
-  (let [query (normalize-query query (:map-params model))
+(defn parse-query [model req]
+  (let [sid (:session-id req)
+        query (normalize-query (:query-params req) (:map-params model))
         fields (:fields query)
-        external-fields (-> model :fields :externals)]
+        external-fields (-> model :fields :externals)
+        data (if-let [data-fn (:data model)]
+               (data-fn req))]
     (merge {}
            (if (:entity model)
              {:select (query-select query model)
               :joins (query-joins query model)})
-           (if-let [data-fn (:data model)]
-             {:data (data-fn query)})
+           (if data
+             {:data data})
            (if external-fields
-             {:externals (query-externals query model sid)}))))
+             {:externals (query-externals query model sid data)}))))
 
 (defn select-ids [{:keys [model query sid]}]
-  (let [query (parse-query model query sid)]
+  (let [query (parse-query model {:query-params query :session-id sid})]
     (vec (map transform-entity
               (build-select (:entity model) (:select query))))))
 
@@ -146,7 +148,7 @@
 
 
 (defn execute-select [service model req include?]
-  (let [query (parse-query model (:query-params req) (:session-id req))
+  (let [query (parse-query model req)
         data (if (:select query)
                (build-select (:entity model) (:select query))
                (:data query))]

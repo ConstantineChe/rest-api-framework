@@ -151,7 +151,10 @@
   (let [query (parse-query model req)
         data (if (:select query)
                (build-select (:entity model) (:select query))
-               (:data query))]
+               (:data query))
+        include-chans (reduce-kv (fn [chans k v]
+                                   (merge chans {k (async/chan 1 (map :data))}))
+                                 {} (:externals query))]
     (if include? (async/go (join-fields (:joins query) data)
                            (kafka-request service (:externals query) model data)))
     (merge {:data (vec (map transform-entity data))}
@@ -162,7 +165,15 @@
                                                      {k (<!! (:chan v))}))
                                             {} (:joins query)))
                                (if (:externals query)
-                                 (reduce-kv (fn [externals k v]
-                                              (merge externals
-                                                     {k (with-cache (:cache v) (<!! (:chan v)))}))
-                                            {} (:externals query))))}))))
+                                 (merge
+                                  (reduce-kv (fn [externals k v]
+                                               (let [res (with-cache (:cache v)
+                                                           (<!! (:chan v)))]
+                                                 (async/go (>! (k include-chans)
+                                                               {:data (:included res)}))
+
+                                                 (merge externals
+                                                        {k (:data res)})))
+                                             {} (:externals query))
+                                  (reduce merge {} (map <!! (vals include-chans)))
+)))}))))

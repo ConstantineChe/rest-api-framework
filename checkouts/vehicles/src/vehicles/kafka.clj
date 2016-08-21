@@ -44,28 +44,40 @@
 
 (defmethod process-request :include-modifications [{:keys [message sid]}]
   (let [params (:params message)
-        modifications (um/select-ids {:model model/vehicle-modifications :query params :sid sid})]
+        modifications (um/execute-select kafka-component
+                                         model/vehicle-modifications
+                                         {:query-params params :session-id sid}
+                                         true)]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data modifications})))
 
 (defmethod process-request :include-makes [{:keys [message sid]}]
   (let [params (:params message)
-        makes (um/select-ids {:model model/vehicle-makes :query params :sid sid})]
+        makes (um/execute-select kafka-component
+                                         model/vehicle-makes
+                                         {:query-params params :session-id sid}
+                                         true)]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data makes})))
 
 (defmethod process-request :include-models [{:keys [message sid]}]
   (let [params (:params message)
-        models (um/select-ids {:model model/vehicle-models :query params :sid sid})]
+        models (um/execute-select kafka-component
+                                         model/vehicle-models
+                                         {:query-params params :session-id sid}
+                                         true)]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data models})))
 
 (defmethod process-request :include-vehicles [{:keys [message sid]}]
   (let [params (:params message)
-        vehicles (um/select-ids {:model model/vehicles :query params :sid sid})]
+        vehicles (um/execute-select kafka-component
+                                         model/vehicles
+                                         {:query-params params :session-id sid}
+                                         true)]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data vehicles})))

@@ -5,6 +5,7 @@
             [schema.core :as s]
             [clojure.set :as set]
             [io.pedestal.log :as log]
+            [utils.logger :refer [with-time-log]]
             [clojure.string :as str]
             [clojure.core.async :as async :refer [<!! >!! <! >!]]))
 
@@ -15,13 +16,14 @@
   )
 
 (defn build-select [entity query]
-  (eval `(kc/select ~entity
-                ~@(filter identity
-                          [(if (eval `(:fields ~query)) `(kc/fields ~@(eval `(:fields ~query))))
-                           (if (eval `(:where ~query)) `(kc/where ~(eval `(:where ~query))))
-                           (if (eval `(:offset ~query)) `(kc/offset ~(eval `(:offset ~query))))
-                           (if (eval `(:limit ~query)) `(kc/limit ~(eval `(:limit ~query))))
-                           (if (eval `(:order ~query)) `(kc/order ~@(eval `(:order ~query))))]))))
+  (with-time-log {:entity entity :query query}
+    (eval `(kc/select ~entity
+                      ~@(filter identity
+                                [(if (eval `(:fields ~query)) `(kc/fields ~@(eval `(:fields ~query))))
+                                 (if (eval `(:where ~query)) `(kc/where ~(eval `(:where ~query))))
+                                 (if (eval `(:offset ~query)) `(kc/offset ~(eval `(:offset ~query))))
+                                 (if (eval `(:limit ~query)) `(kc/limit ~(eval `(:limit ~query))))
+                                 (if (eval `(:order ~query)) `(kc/order ~@(eval `(:order ~query))))])))))
 
 (defn transform-entity [entity]
   {:id (:id entity)
@@ -37,7 +39,7 @@
              query query-map))
 
 (defn params->key [tag params]
-  (if (set? params) (apply str ":" tag ":" (interpose "," params))
+  (if (or (vector? params) (set? params)) (apply str ":" tag ":" (interpose "," params))
       (apply str ":" tag ":" params)))
 
 (defn query-select [query model]
@@ -115,11 +117,6 @@
            (if external-fields
              {:externals (query-externals query model sid data)}))))
 
-(defn select-ids [{:keys [model query sid]}]
-  (let [query (parse-query model {:query-params query :session-id sid})]
-    (vec (map transform-entity
-              (build-select (:entity model) (:select query))))))
-
 (defn string->array [value transform]
   (cond (vector? value)
         value
@@ -171,27 +168,26 @@
     (merge {:data (vec (map transform-entity data))}
            (if (and with-includes?
                     (some (complement empty?) [(:joins query) (:externals query)]))
-             {:included (merge (if (:joins query)
-                                 (reduce-kv (fn [joins k v]
-                                              (let [res (<!! (:chan v))]
-                                                (when (:included res)
-                                                  (>!! (k (swap! include-chans assoc k (async/chan 1)))
-                                                       {:data (:included res)}))
-                                                (merge joins
-                                                       {k (:data res)})))
-                                            {} (:joins query)))
-                               (if (:externals query)
-                                 (merge
-                                  (reduce-kv (fn [externals k v]
-                                               (let [res (if (:cache v)
-                                                           (with-cache (:key (:cache v)) (:exp (:cache v))
-                                                             (<!! (:chan v)))
-                                                           (<!! (:chan v)))]
-                                                 (when (:included res)
-                                                  (>!! (k (swap! include-chans assoc k (async/chan 1)))
-                                                       {:data (:included res)}))
-                                                 (merge externals
-                                                        {k (:data res)})))
-                                             {} (:externals query))
-                                  ))
-                               (reduce merge {} (map (comp #(do (prn %) %) :data <!!) (vals @include-chans))))}))))
+             (with-time-log {:includes (keys (merge (:joins query) (:externals query)))}
+               {:included (merge (if (:joins query)
+                                   (reduce-kv (fn [joins k v]
+                                                (let [res (<!! (:chan v))]
+                                                  (when (:included res)
+                                                    (>!! (k (swap! include-chans assoc k (async/chan 1)))
+                                                         {:data (:included res)}))
+                                                  (merge joins
+                                                         {k (:data res)})))
+                                              {} (:joins query)))
+                                 (if (:externals query)
+                                   (reduce-kv (fn [externals k v]
+                                                (let [res (if (:cache v)
+                                                            (with-cache (:key (:cache v)) (:exp (:cache v))
+                                                              (<!! (:chan v)))
+                                                            (<!! (:chan v)))]
+                                                  (when (:included res)
+                                                    (>!! (k (swap! include-chans assoc k (async/chan 1)))
+                                                         {:data (:included res)}))
+                                                  (merge externals
+                                                         {k (:data res)})))
+                                              {} (:externals query)))
+                                 (reduce merge {} (map (comp :data <!!) (vals @include-chans))))})))))

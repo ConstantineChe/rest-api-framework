@@ -21,7 +21,7 @@
    :fields {:externals {:vehicles
                         {:topic "vehicles"
                          :from "users"
-                         ;:cache {:tag "vehicles" :exp (* 5 60)}
+                         :cache {:tag "vehicles" :exp (* 5 60)}
                          :with-includes? true
                          :operation :include-vehicles
                          :params {:filter (fn [data] {:id (-> data first :vehicles)})

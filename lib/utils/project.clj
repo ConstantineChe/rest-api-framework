@@ -12,6 +12,7 @@
                  [clj-redis-session "2.1.0"]
                  [korma "0.4.2"]
                  [ragtime "0.5.2"]
+                 [midje "1.8.3"]
                  [org.clojure/java.jdbc "0.3.7"]
                  [postgresql/postgresql "9.1-901-1.jdbc4"]
                  [com.taoensso/encore "2.65.0"]
@@ -25,9 +26,9 @@
                  [org.slf4j/jcl-over-slf4j "1.7.21"]
                  [org.slf4j/log4j-over-slf4j "1.7.21"]]
   :target-path "target/%s/"
-  :plugins [[lein-localrepo "0.5.3"]]
-  :checkout-deps-shares ^:replace [:source-paths :resource-paths :compile-path
-                                   #=(eval leiningen.core.classpath/checkout-deps-paths)]
+  :plugins [[lein-localrepo "0.5.3"]
+            [lein-midje "3.0.0"]
+            [lein-environ "1.0.3"]]
   :aot [utils.kafka-service
         utils.model
         utils.db

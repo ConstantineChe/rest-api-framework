@@ -1,5 +1,7 @@
 (ns utils.logger
-  (:require [io.pedestal.log :refer [LoggerSource]])
+  (:require [io.pedestal.log :as log :refer [LoggerSource]]
+            [utils.cache :refer [wcar*]]
+            [taoensso.carmine :as car])
   (:import [org.slf4j Logger LoggerFactory]))
 
 (extend-protocol LoggerSource
@@ -23,18 +25,22 @@
      (.debug t (if (string? body) ^String body ^String (pr-str body)) ^Throwable throwable)))
   (-info
     ([t body]
-     (.info t ^String (if (string? body) (str ">>= " body) (pr-str (str ">>= " body)))))
+     (wcar* (car/set (str ":logs:info:" (new java.util.Date) ":") body))
+     (.info t ^String (if (string? body) (str body) (pr-str (str ">>= " body)))))
     ([t body throwable]
      (.info t (if (string? body) ^String (str ">>= " body) ^String (pr-str (str ">>= " body))) ^Throwable throwable)))
   (-warn
     ([t body]
+     (wcar* (car/set (str ":logs:warn:" (new java.util.Date) ":") body))
      (.warn t ^String (if (string? body) body (pr-str body))))
     ([t body throwable]
      (.warn t (if (string? body) ^String body ^String (pr-str body)) ^Throwable throwable)))
   (-error
     ([t body]
+     (wcar* (car/set (str ":logs:error:" (new java.util.Date) ":") body))
      (.error t ^String (if (string? body) body (pr-str body))))
     ([t body throwable]
+     (wcar* (car/set (str ":logs:error:" (new java.util.Date) ":") body))
      (.error t (if (string? body) ^String body ^String (pr-str body)) ^Throwable throwable)))
   nil
   (-level-enabled? [t level-key] false)
@@ -53,3 +59,10 @@
   (-error
     ([t body] nil)
     ([t body throwable] nil)))
+
+(defmacro with-time-log [keyvals & body]
+  `(let [s# (new java.io.StringWriter)]
+     (binding [*out* s#]
+       (let [r# (time (do ~@body))]
+         (log/info ~@(reduce-kv conj [] keyvals) :time (str s#))
+         r#))))

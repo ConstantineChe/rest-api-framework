@@ -3,7 +3,9 @@
             [utils.schema.vehicles :as vs]
             [utils.model :as util]
             [korma.core :as kc]
-            [cheshire.core :as json]))
+            [cheshire.core :as json]
+            [io.pedestal.log :as log]
+            [clojure.core.async :as async]))
 
 
 

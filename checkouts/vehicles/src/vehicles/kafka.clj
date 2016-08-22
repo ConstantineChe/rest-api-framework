@@ -47,7 +47,7 @@
         modifications (um/execute-select kafka-component
                                          model/vehicle-modifications
                                          {:query-params params :session-id sid}
-                                         true)]
+                                         (:with-includes? params))]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data modifications})))
@@ -55,9 +55,9 @@
 (defmethod process-request :include-makes [{:keys [message sid]}]
   (let [params (:params message)
         makes (um/execute-select kafka-component
-                                         model/vehicle-makes
-                                         {:query-params params :session-id sid}
-                                         true)]
+                                 model/vehicle-makes
+                                 {:query-params params :session-id sid}
+                                 (:with-includes? params))]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data makes})))
@@ -65,9 +65,9 @@
 (defmethod process-request :include-models [{:keys [message sid]}]
   (let [params (:params message)
         models (um/execute-select kafka-component
-                                         model/vehicle-models
-                                         {:query-params params :session-id sid}
-                                         true)]
+                                  model/vehicle-models
+                                  {:query-params params :session-id sid}
+                                  (:with-includes? params))]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data models})))
@@ -75,9 +75,9 @@
 (defmethod process-request :include-vehicles [{:keys [message sid]}]
   (let [params (:params message)
         vehicles (um/execute-select kafka-component
-                                         model/vehicles
-                                         {:query-params params :session-id sid}
-                                         true)]
+                                    model/vehicles
+                                    {:query-params params :session-id sid}
+                                    (:with-includes? params))]
     (produce! sid (:from message) {:type :response
                                    :from "vehicles"
                                    :data vehicles})))

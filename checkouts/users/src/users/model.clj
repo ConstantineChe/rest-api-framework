@@ -17,29 +17,13 @@
             :external {}}})
 
 (def my-vehicles
-  {:data (fn [request] [{:id -1 :vehicles [1 2 3 4 5]}])
+  {:data (fn [request] [{:id -1 :vehicles [2 3 4 5]}])
    :fields {:externals {:vehicles
                         {:topic "vehicles"
                          :from "users"
-                         :cache "vehicles"
+                         ;:cache {:tag "vehicles" :exp (* 5 60)}
+                         :with-includes? true
                          :operation :include-vehicles
                          :params {:filter (fn [data] {:id (-> data first :vehicles)})
                                   :sort "id"}}
-                        :modifications
-                        {:topic "vehicles"
-                         :from "users"
-                         :cache "modifications"
-                         :operation :include-modifications
-                         :params {:filter (fn [data] {:id (-> data first :vehicles)})}}
-                       :models
-                       {:topic "vehicles"
-                        :from "users"
-                        :cache "models"
-                        :operation :include-models
-                        :params {:filter (fn [data] {:id (-> data first :vehicles)})}}
-                       :makes
-                       {:topic "vehicles"
-                        :from "users"
-                        :cache "makes"
-                        :operation :include-makes
-                        :params {:filter (fn [data] {:id (-> data first :vehicles)})}}}}})
+}}})

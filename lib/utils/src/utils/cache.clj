@@ -21,14 +21,14 @@
       (wcar redis-connection (car/del key)))))
 
 
-(defmacro with-cache [key & forms]
+(defmacro with-cache [key exp & forms]
   (let [value (gensym "value")
         cache (gensym "cache")]
       (list `if-let [cache (list `wcar* (list `car/get key))]
          cache
          (list `let [value (apply list `do forms)]
                (list `wcar* (list `car/set key value)
-                     (list `car/expire key (list `* 60 60)))
+                     (list `car/expire key exp))
                value))))
 
 (defn get-cache [key]

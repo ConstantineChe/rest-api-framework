@@ -92,7 +92,8 @@
                           {key (merge {:sid sid
                                        :chan chan}
                                       (if (:cache req)
-                                        {:cache (params->key (:cache req) key-source)}))})))
+                                        {:cache {:key (params->key (:tag (:cache req)) key-source)
+                                                 :exp (:exp (:cache req))}}))})))
                {}
                (if fields
                  (select-keys external-fields (filter identity (map #(% (:fks model)) fields)))
@@ -130,50 +131,67 @@
 
 (defn kafka-request [service query-externals model data]
   (doseq [[k v] query-externals]
-    (if-not (cache/get-cache (:cache v))
+    (if-not (cache/get-cache (:key (:cache v)))
       (k/send-msg! service (:sid v) (-> model :fields :externals k :topic)
                    {:type :request
                     :from (-> model :fields :externals k :from)
                     :operation (-> model :fields :externals k :operation)
-                    :params (reduce-kv (fn [params key val]
-                                         (merge params {key (if (fn? val) (val data) val)}))
-                                       {} (:params (k (:externals (:fields model)))))}))))
+                    :params (reduce-kv
+                             (fn [params key val]
+                               (merge params {key (if (fn? val) (val data) val)}))
+                             {:with-includes? (-> model :fields :externals k :with-includes?)}
+                             (:params (k (:externals (:fields model)))))}))))
 
-(defn join-fields [joins data]
+(declare execute-select)
+
+(defn join-fields [joins data service]
   (doseq [[k {:keys [chan params]}] joins]
     (async/go (let [ids (set (map #((:fk params) %) data))
                     params (assoc-in params [:query :filter :ids] ids)]
-                (>! chan (with-cache (params->key (:cache params) ids)
-                           (select-ids params)))))))
+                (>! chan (if (:cache params)
+                           (with-cache (params->key (:tag (:cache params)) ids) (:exp (:cache params))
+                                  (execute-select service (:model params)
+                                                  {:session-id (:sid params)
+                                                   :query-params (:query params)}
+                                                  (:with-includes? params)))
+                           (execute-select service (:model params)
+                                           {:session-id (:sid params)
+                                            :query-params (:query params)}
+                                           (:with-includes? params))))))))
 
 
-(defn execute-select [service model req include?]
+(defn execute-select [service model req with-includes?]
   (let [query (parse-query model req)
         data (if (:select query)
                (build-select (:entity model) (:select query))
                (:data query))
-        include-chans (reduce-kv (fn [chans k v]
-                                   (merge chans {k (async/chan 1 (map :data))}))
-                                 {} (:externals query))]
-    (if include? (async/go (join-fields (:joins query) data)
-                           (kafka-request service (:externals query) model data)))
+        include-chans (atom {})]
+    (if with-includes? (async/go (join-fields (:joins query) data service)
+                                 (kafka-request service (:externals query) model data)))
     (merge {:data (vec (map transform-entity data))}
-           (if (and include? (some (complement empty?) [(:joins query) (:externals query)]))
+           (if (and with-includes?
+                    (some (complement empty?) [(:joins query) (:externals query)]))
              {:included (merge (if (:joins query)
                                  (reduce-kv (fn [joins k v]
-                                              (merge joins
-                                                     {k (<!! (:chan v))}))
+                                              (let [res (<!! (:chan v))]
+                                                (when (:included res)
+                                                  (>!! (k (swap! include-chans assoc k (async/chan 1)))
+                                                       {:data (:included res)}))
+                                                (merge joins
+                                                       {k (:data res)})))
                                             {} (:joins query)))
                                (if (:externals query)
                                  (merge
                                   (reduce-kv (fn [externals k v]
-                                               (let [res (with-cache (:cache v)
+                                               (let [res (if (:cache v)
+                                                           (with-cache (:key (:cache v)) (:exp (:cache v))
+                                                             (<!! (:chan v)))
                                                            (<!! (:chan v)))]
-                                                 (async/go (>! (k include-chans)
-                                                               {:data (:included res)}))
-
+                                                 (when (:included res)
+                                                  (>!! (k (swap! include-chans assoc k (async/chan 1)))
+                                                       {:data (:included res)}))
                                                  (merge externals
                                                         {k (:data res)})))
                                              {} (:externals query))
-                                  (reduce merge {} (map <!! (vals include-chans)))
-)))}))))
+                                  ))
+                               (reduce merge {} (map (comp #(do (prn %) %) :data <!!) (vals @include-chans))))}))))

@@ -134,7 +134,7 @@
    (fn [{vehicle-model-input :body-params}]
      (let [vehicle-model (db/create-vehicle-model vehicle-model-input)]
        (-> (response {:message "Vehicle model created"
-                      :data (db/create-vehicle-model vehicle-model)})
+                      :data vehicle-model})
            (status 201))))))
 
 (def create-vehicle-modification

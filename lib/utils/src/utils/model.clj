@@ -39,8 +39,12 @@
              query query-map))
 
 (defn params->key [tag params]
-  (if (or (vector? params) (set? params)) (apply str ":" tag ":" (interpose "," params))
-      (apply str ":" tag ":" params)))
+  (prn params)
+  (if (or (vector? params) (set? params)) (str ":" tag ":" (apply str (interpose "," params) ":"))
+      (str ":" tag ":" (cond (:ids params) (apply str (interpose "," (:ids params)) ":")
+                             (:id params) (apply str (interpose "," (:id params)) ":")
+                             :default -1)
+           (:limit params) (:offset params))))
 
 (defn query-select [query model]
   (let [fields (:fields query)
@@ -65,7 +69,7 @@
      :where (if (:filter query)
               (reduce-kv (fn [where k v]
                            (merge where
-                                  {k (if (sequential? v)
+                                  {k (if (or (set? v) (vector? v))
                                        `['(symbol "in") ~v]
                                        v)}))
                          {}
@@ -88,14 +92,11 @@
         external-fields (-> model :fields :externals)]
     (reduce-kv (fn [included key req]
                  (let [sid (keyword (str sid "-" (:topic req) "-" (name (:operation req))))
-                       chan (k/get-chan! sid)
-                       key-source (if data data query)]
+                       chan (k/get-chan! sid)]
                    (merge included
                           {key (merge {:sid sid
-                                       :chan chan}
-                                      (if (:cache req)
-                                        {:cache {:key (params->key (:tag (:cache req)) key-source)
-                                                 :exp (:exp (:cache req))}}))})))
+                                       :chan chan
+                                       :cache (:cache req)})})))
                {}
                (if fields
                  (select-keys external-fields (filter identity (map #(% (:fks model)) fields)))
@@ -128,14 +129,15 @@
 
 (defn kafka-request [service query-externals model data]
   (doseq [[k v] query-externals]
-    (if-not (cache/get-cache (:key (:cache v)))
+    (if-not (cache/get-cache (params->key (:tag (:cache v))
+                                          ((-> model :fields :externals k :params :filter) data)))
       (k/send-msg! service (:sid v) (-> model :fields :externals k :topic)
                    {:type :request
                     :from (-> model :fields :externals k :from)
                     :operation (-> model :fields :externals k :operation)
                     :params (reduce-kv
-                             (fn [params key val]
-                               (merge params {key (if (fn? val) (val data) val)}))
+                             (fn [params k v]
+                               (merge params {k (if (fn? v) (v data) v)}))
                              {:with-includes? (-> model :fields :externals k :with-includes?)}
                              (:params (k (:externals (:fields model)))))}))))
 
@@ -143,7 +145,7 @@
 
 (defn join-fields [joins data service]
   (doseq [[k {:keys [chan params]}] joins]
-    (async/go (let [ids (set (map #((:fk params) %) data))
+    (async/go (let [ids (vec (set (map #((:fk params) %) data)))
                     params (assoc-in params [:query :filter :ids] ids)]
                 (>! chan (if (:cache params)
                            (with-cache (params->key (:tag (:cache params)) ids) (:exp (:cache params))
@@ -181,7 +183,10 @@
                                  (if (:externals query)
                                    (reduce-kv (fn [externals k v]
                                                 (let [res (if (:cache v)
-                                                            (with-cache (:key (:cache v)) (:exp (:cache v))
+                                                            (with-cache (params->key (:tag (:cache v))
+                                                                                     ((-> model :fields :externals
+                                                                                          k :params :filter) data))
+                                                              (:exp (:cache v))
                                                               (<!! (:chan v)))
                                                             (<!! (:chan v)))]
                                                   (when (:included res)

@@ -5,6 +5,7 @@
             [ring.util.response :refer [response status]]
             [io.pedestal.http.ring-middlewares :as middleware]
             [clj-redis-session.core :refer [redis-store]]
+            [utils.redis :refer [redis-connection]]
             [utils.kafka-service :as service]
             [clojure.string :as str]
             [clojure.core.async :refer [<!!]]))
@@ -69,7 +70,5 @@
                            (catch java.lang.Exception e
                              [nil "nil"]))]
       (assoc context :request (assoc request :session-id session))))))
-
-(def redis-connection {})
 
 (def session (middleware/session  {:store (redis-store redis-connection)}))

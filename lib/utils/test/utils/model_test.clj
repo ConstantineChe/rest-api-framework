@@ -21,7 +21,7 @@
 (defmethod process-request :default [msg]
   (println "Invalid request operation: " (-> msg :message :operation)))
 
-(use-fixtures (.start kafka))
+;(use-fixtures (.start kafka))
 
 (facts "TODO"
        (fact "TODO 1"

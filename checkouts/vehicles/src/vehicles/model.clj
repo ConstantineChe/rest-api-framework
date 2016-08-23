@@ -67,7 +67,7 @@
                             :model vehicle-makes
                             :query {:sort "name"}}
                     :models {:fk :model_id
-                             ;:cache "models"
+                             :cache {:tag "models" :exp 30}
                              ;:with-includes? true
                              :model vehicle-models
                              :query {:sort "-id"}}}
@@ -75,7 +75,7 @@
             :externals {:modifications
                         {:topic "vehicles"
                          :from "vehicles"
-                         ;:cache "modifications"
+                         :cache {:tag "modifications" :exp 30}
                          ;:with-includes? true
                          :operation :include-modifications
                          :params {:filter (fn [data]

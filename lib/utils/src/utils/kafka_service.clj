@@ -107,22 +107,23 @@
       (let [topics (map (comp name :topic) partitions)]
         (subscribe-to-partitions! c topics)
         (println "Partitions subscribed to:" (partition-subscriptions c))
-        (while true
+        (loop []
           (let [cr (poll! c)]
             (doseq [msg (into [] cr)]
  ;             (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
               (async/go (process-message handler {:message (:value msg)
                                                   :sid (:key msg)}))))
-          )))
+          (recur))))
     ))
 
 (defn start-producer! [producer producer-chan]
   (async/thread
     (with-open [p producer]
-      (while true
+      (loop []
         (let [msg (<!! producer-chan)]
 ;          (prn "message " msg)
-          (send-async! p msg)))
+          (send-async! p msg))
+        (recur))
       )))
 
 (defprotocol PKafka

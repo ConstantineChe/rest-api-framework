@@ -40,11 +40,14 @@
 
 (defn params->key [tag params]
   (prn params)
-  (if (or (vector? params) (set? params)) (str ":" tag ":" (apply str (interpose "," params) ":"))
-      (str ":" tag ":" (cond (:ids params) (apply str (interpose "," (:ids params)) ":")
-                             (:id params) (apply str (interpose "," (:id params)) ":")
+  (if (or (vector? params) (set? params))
+    (str ":" tag ":" (apply str (interpose "," params)) ":")
+    (str ":" tag ":" (cond (:ids params)
+                           (apply str (interpose "," (:ids params)))
+                           (:id params)
+                           (apply str (interpose "," (:id params)))
                              :default -1)
-           (:limit params) (:offset params))))
+          ":" (:limit params) (:offset params))))
 
 (defn query-select [query model]
   (let [fields (:fields query)

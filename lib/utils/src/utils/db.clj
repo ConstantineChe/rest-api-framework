@@ -3,7 +3,9 @@
    [korma.db :as kdb]
    [korma.core :as kc]
    [ragtime.jdbc :as jdbc]
-   [ragtime.repl :as repl]))
+   [ragtime.repl :as repl]
+   [clj-time.format :as f]
+   [clj-time.core :as t]))
 
 (defn db-connection [config]
   (kdb/postgres config))
@@ -23,6 +25,13 @@
   "This funtion preforms rollback by one migration from current state."
   [config]
   (fn [& args] (repl/rollback config)))
+
+(def sql-date (f/formatters :year-month-day))
+
+(def sql-date-time (f/formatters :mysql))
+
+
+(t/from-time-zone (t/now) (t/time-zone-for-id "Europe/Kiev"))
 
 (defn cast-type [value type]
   (kc/raw (str "'" value "'::" type)))

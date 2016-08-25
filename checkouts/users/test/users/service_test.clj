@@ -9,6 +9,7 @@
             [utils.db :as dbu]
             [cheshire.core :as json]
             [users.service :as service]
+            [users.kafka :as k]
             [environ.core :refer [env]]
             [clj-time.core :as t]
             [clj-time.format :as f]
@@ -49,6 +50,9 @@
                    :body (json/generate-string body)
                    :headers (merge headers {"Content-Type" "application/json"}))
      )))
+
+
+;(use-fixtures :once (.start k/kafka-component))
 
 (use-fixtures :once init-db!)
 (use-fixtures :each clear-tables!)

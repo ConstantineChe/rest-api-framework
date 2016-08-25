@@ -2,11 +2,10 @@
   (:require [io.pedestal.log :as log :refer [LoggerSource]]
             [utils.redis :refer [wcar*]]
             [taoensso.carmine :as car]
-            [clj-time [core :as t] [format :as f]])
+            [utils.misc :refer [iso-now]]
+            [clj-time.format :as f])
   (:import [org.slf4j Logger LoggerFactory]))
 
-(defn now []
-  (f/unparse (f/formatters :date-hour-minute-second-ms) (t/now)))
 
 (extend-protocol LoggerSource
   Logger
@@ -29,24 +28,24 @@
      (.debug t (if (string? body) ^String body ^String (pr-str body)) ^Throwable throwable)))
   (-info
     ([t body]
-     (wcar* (car/set (str ":logs:info:" (now) ":") body))
-     (.info t ^String (if (string? body) (str body) (pr-str (str ">>= " body)))))
+     (wcar* (car/set (str ":logs:info:" (iso-now) ":") body))
+     (.info t ^String (if (string? body) (str body) (pr-str body))))
     ([t body throwable]
-     (wcar* (car/set (str ":logs:info:" (now) ":") body))
-     (.info t (if (string? body) ^String (str ">>= " body) ^String (pr-str (str ">>= " body))) ^Throwable throwable)))
+     (wcar* (car/set (str ":logs:info:" (iso-now) ":") body))
+     (.info t (if (string? body) ^String body ^String (pr-str body)) ^Throwable throwable)))
   (-warn
     ([t body]
-     (wcar* (car/set (str ":logs:warn:" (now) ":") body))
+     (wcar* (car/set (str ":logs:warn:" (iso-now) ":") body))
      (.warn t ^String (if (string? body) body (pr-str body))))
     ([t body throwable]
-     (wcar* (car/set (str ":logs:warn:" (now) ":") body))
+     (wcar* (car/set (str ":logs:warn:" (iso-now) ":") body))
      (.warn t (if (string? body) ^String body ^String (pr-str body)) ^Throwable throwable)))
   (-error
     ([t body]
-     (wcar* (car/set (str ":logs:error:" (now) ":") body))
+     (wcar* (car/set (str ":logs:error:" (iso-now) ":") body))
      (.error t ^String (if (string? body) body (pr-str body))))
     ([t body throwable]
-     (wcar* (car/set (str ":logs:error:" (now) ":") body))
+     (wcar* (car/set (str ":logs:error:" (iso-now) ":") body))
      (.error t (if (string? body) ^String body ^String (pr-str body)) ^Throwable throwable)))
   nil
   (-level-enabled? [t level-key] false)

@@ -46,8 +46,7 @@
                            (apply str (interpose "," (:ids params)))
                            (:id params)
                            (apply str (interpose "," (:id params)))
-                             :default -1)
-          ":" (:limit params) (:offset params))))
+                             :default -1)":")))
 
 (defn query-select [query model]
   (let [fields (:fields query)

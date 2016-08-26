@@ -4,15 +4,28 @@
             [midje.sweet :refer :all]
             [utils.model :refer :all]
             [utils.db :as db]
+            [korma.db :as kdb]
+            [korma.core :as kc :refer [select insert defentity]]
             [clojure.core.async :as async]
             [utils.kafka-service :as service]
             [schema.test]
             [environ.core :refer [env]]))
 
 
-(def connection (db/db-connection {:db (str (or (:db env) (:users-db env) "carbook") "_test")
+(def connection (db/db-connection {:db (str (:db env  "carbook") "_test")
                                    :username (:db-user env)
-                                   :password (:db-password env)})))
+                                   :password (:db-password env)}))
+
+(kdb/defdb db connection)
+
+(defentity test-entity
+  (kc/table "test_tbl"))
+
+(defentity test-include
+  (kc/table "test_include_tbl"))
+
+(defentity test-external-include
+  (kc/table "test_external_include_tbl"))
 
 (defmulti process-request (comp :operation :message))
 

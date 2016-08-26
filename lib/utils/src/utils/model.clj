@@ -39,7 +39,6 @@
              query query-map))
 
 (defn params->key [tag params]
-  (prn params)
   (if (or (vector? params) (set? params))
     (str ":" tag ":" (apply str (interpose "," params)) ":")
     (str ":" tag ":" (cond (:ids params)
@@ -185,9 +184,10 @@
                                  (if (:externals query)
                                    (reduce-kv (fn [externals k v]
                                                 (let [res (if (:cache v)
-                                                            (with-cache (params->key (:tag (:cache v))
-                                                                                     ((-> model :fields :externals
-                                                                                          k :params :filter) data))
+                                                            (with-cache
+                                                              (params->key (:tag (:cache v))
+                                                                           ((-> model :fields :externals
+                                                                                k :params :filter) data))
                                                               (:exp (:cache v))
                                                               (<!! (:chan v)))
                                                             (<!! (:chan v)))]
@@ -197,4 +197,4 @@
                                                   (merge externals
                                                          {k (:data res)})))
                                               {} (:externals query)))
-                                 (reduce merge {} (map (comp :data <!!) (vals @include-chans))))})))))
+                                 (transduce (map (comp :data <!!)) merge {} (vals @include-chans)))})))))

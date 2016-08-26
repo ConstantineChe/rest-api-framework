@@ -23,62 +23,62 @@
 
 (def produce! (partial service/send-msg! kafka-component))
 
-(defmethod process-request :create-vehicle [{:keys [message sid]}]
+(defmethod process-request :create-vehicle [{:keys [message uid]}]
   (let [{:keys [user-id vehicle]} (:params message)]
-    (produce! sid (:from message) {:type :response
+    (produce! uid (:from message) {:type :response
                                    :from "vehicles"
                                    :data (s/with-fn-validation (db/create-vehicle vehicle user-id))})))
 
-(defmethod process-request :delete-vehicle [{:keys [message sid]}]
+(defmethod process-request :delete-vehicle [{:keys [message uid]}]
   (let [{:keys [user-id vehicle-id]} (:params message)]
-    (produce! sid (:from message) {:type :response
+    (produce! uid (:from message) {:type :response
                                    :from "vehicles"
                                    :data (s/with-fn-validation (db/delete-vehicle vehicle-id user-id))})))
 
-(defmethod process-request :get-users-vehicle [{:keys [message sid]}]
+(defmethod process-request :get-users-vehicle [{:keys [message uid]}]
   (let [{:keys [user-id vehicle-id]} (:params message)
         vehicle (s/with-fn-validation (db/get-users-vehicle vehicle-id user-id))]
-    (produce! sid (:from message) {:type :response
+    (produce! uid (:from message) {:type :response
                                    :from "vehicles"
                                    :data {:vehicle vehicle :status (if vehicle "success" "failed")}})))
 
-(defmethod process-request :include-modifications [{:keys [message sid]}]
+(defmethod process-request :include-modifications [{:keys [message uid]}]
   (let [params (:params message)
         modifications (um/execute-select kafka-component
                                          model/vehicle-modifications
-                                         {:query-params params :session-id sid}
+                                         {:query-params params :session-id uid}
                                          (:with-includes? params))]
-    (produce! sid (:from message) {:type :response
+    (produce! uid (:from message) {:type :response
                                    :from "vehicles"
                                    :data modifications})))
 
-(defmethod process-request :include-makes [{:keys [message sid]}]
+(defmethod process-request :include-makes [{:keys [message uid]}]
   (let [params (:params message)
         makes (um/execute-select kafka-component
                                  model/vehicle-makes
-                                 {:query-params params :session-id sid}
+                                 {:query-params params :session-id uid}
                                  (:with-includes? params))]
-    (produce! sid (:from message) {:type :response
+    (produce! uid (:from message) {:type :response
                                    :from "vehicles"
                                    :data makes})))
 
-(defmethod process-request :include-models [{:keys [message sid]}]
+(defmethod process-request :include-models [{:keys [message uid]}]
   (let [params (:params message)
         models (um/execute-select kafka-component
                                   model/vehicle-models
-                                  {:query-params params :session-id sid}
+                                  {:query-params params :session-id uid}
                                   (:with-includes? params))]
-    (produce! sid (:from message) {:type :response
+    (produce! uid (:from message) {:type :response
                                    :from "vehicles"
                                    :data models})))
 
-(defmethod process-request :include-vehicles [{:keys [message sid]}]
+(defmethod process-request :include-vehicles [{:keys [message uid]}]
   (let [params (:params message)
         vehicles (um/execute-select kafka-component
                                     model/vehicles
-                                    {:query-params params :session-id sid}
+                                    {:query-params params :session-id uid}
                                     (:with-includes? params))]
-    (produce! sid (:from message) {:type :response
+    (produce! uid (:from message) {:type :response
                                    :from "vehicles"
                                    :data vehicles})))
 

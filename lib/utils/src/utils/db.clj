@@ -31,7 +31,7 @@
 (def sql-date-time (f/formatters :mysql))
 
 
-(t/from-time-zone (t/now) (t/time-zone-for-id "Europe/Kiev"))
+
 
 (defn cast-type [value type]
   (kc/raw (str "'" value "'::" type)))

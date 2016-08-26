@@ -42,35 +42,47 @@
                             defaults
                             )))
 
-(defonce sid-chans (atom {}))
+(defonce uid-chans (atom {}))
 
-(defn get-chan! [sid]
-  (if-not (sid @sid-chans)
-    (swap! sid-chans assoc sid (async/chan)))
-  (sid @sid-chans))
+(defn get-chan! [uid]
+  (if-not (uid @uid-chans)
+    (swap! uid-chans assoc uid (async/chan 1)))
+  (uid @uid-chans))
 
-(defn process-message [handler {:keys [message sid] :as msg}]
-;  (println "<<<<<<<<<<<<<" (:from message) "<KAFKA: " msg)
+(defn create-chan! []
+  (let [chan (async/chan)
+        uid (-> (java.util.UUID/randomUUID) str keyword)]
+    (swap! uid-chans assoc uid chan)
+    [uid chan]))
+
+(defn get-response! [uid]
+  (let [response (try (<!! (uid @uid-chans))
+                      (catch Exception e ::nothing)
+                      (finally (swap! uid-chans dissoc uid)))]
+    response))
+
+(defn process-message [handler {:keys [message uid] :as msg}]
+  (log/debug :desc "got message from Kafka" :topic (:from message) :message msg)
     (case (:type message)
     :request (handler msg)
-    :response (if-let [ch (sid @sid-chans)] (>!! ch (:data message)) (println "No chan to response"))
-    (println "Invalid msg format:" message))
+    :response (if-let [ch (uid @uid-chans)] (>!! ch (:data message)) (println "No chan to response"))
+    (log/error :error "Invalid msg format:" :message message))
     )
 
 
-(defn send-message! [producer-chan session topic msg]
-;  (println ">>>>>>>>>>>>CHAN>SEND: " session topic msg producer-chan)
-  (>!! producer-chan {:topic topic :partition 0 :key session :value msg}))
+(defn send-message! [producer-chan uid topic msg]
+  (log/debug :desc "sending message to producer chan" :uid uid
+             :topic topic :message  msg :chan producer-chan)
+  (async/go (>! producer-chan {:topic topic :partition 0 :key uid :value msg})))
 
 
 (comment (defn start-consumer! [consumer partitions handler]
-    (let [input-ch (async/chan)
-          terminate-ch (async/chan)]
+    (let [terminate-ch (async/chan)]
       (async/thread
         (with-open [c consumer]
           (let [topics (map (comp name :topic) partitions)]
             (subscribe-to-partitions! c topics)
-            (println "Partitions subscribed to:" (partition-subscriptions c))
+;            (println "Partitions subscribed to:" (partition-subscriptions c))
             (loop []
               (let [[v ch] (async/alts!! [input-ch terminate-ch])]
                 (if (identical? ch input-ch)
@@ -79,7 +91,7 @@
                       (doseq [msg (into [] cr)]
 ;                        (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
                         (process-message handler {:message (:value msg)
-                                                  :sid (:key msg)})))
+                                                  :uid (:key msg)})))
                     (recur))))
 
               )))
@@ -102,32 +114,37 @@
       terminate-ch)))
 
 (defn start-consumer! [consumer partitions handler]
-  (async/thread
-    (with-open [c consumer]
-      (let [topics (map (comp name :topic) partitions)]
-        (subscribe-to-partitions! c topics)
-        (println "Partitions subscribed to:" (partition-subscriptions c))
-        (loop []
-          (let [cr (poll! c)]
-            (doseq [msg (into [] cr)]
- ;             (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
-              (async/go (process-message handler {:message (:value msg)
-                                                  :sid (:key msg)}))))
-          (recur))))
-    ))
+  (let [terminate-ch (async/chan)]
+    (async/thread
+      (with-open [c consumer]
+        (let [topics (map (comp name :topic) partitions)]
+          (subscribe-to-partitions! c topics)
+          (log/info :msg "Partitions subscribed" :partitions (partition-subscriptions c))
+          (loop []
+            (let [cr (poll! c)]
+              (doseq [msg (into [] cr)]
+                (log/debug :desc "Kafka message consumed" :message msg)
+                (async/go (process-message handler {:message (:value msg)
+                                                    :uid (:key msg)}))))
+            (recur)))))
+    terminate-ch))
 
 (defn start-producer! [producer producer-chan]
-  (async/thread
-    (with-open [p producer]
-      (loop []
-        (let [msg (<!! producer-chan)]
-;          (prn "message " msg)
-          (send-async! p msg))
-        (recur))
-      )))
+  (let [terminate-ch (async/chan)]
+    (async/thread
+      (with-open [p producer]
+        (loop []
+          (let [msg (<!! producer-chan)
+                [val chan] (async/alts!! [terminate-ch (async/timeout 0)])]
+            (log/debug :desc "Async send message to Kafka" :message msg)
+            (send-async! p msg)
+            (if-not (identical? chan terminate-ch)
+              (recur))
+            ))))
+    terminate-ch))
 
 (defprotocol PKafka
-  (send-msg! [component ^String sid ^String topic message]))
+  (send-msg! [component ^String uid ^String topic message]))
 
 (defrecord Kafka [consumer-config producer-config consumer-thread producer-thread producer-chan subscriptions handler]
   component/Lifecycle
@@ -148,8 +165,8 @@
 
 (extend-protocol PKafka
   Kafka
-  (send-msg! [component sid topic message]
-    (send-message! (:producer-chan component) sid topic message)
+  (send-msg! [component uid topic message]
+    (send-message! (:producer-chan component) uid topic message)
     component))
 
 (defn kafka [config]

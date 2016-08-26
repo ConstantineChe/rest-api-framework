@@ -18,14 +18,14 @@
 
 (def produce! (partial service/send-msg! kafka-component))
 
-(defmethod process-request :token [{:keys [message sid]}]
+(defmethod process-request :token [{:keys [message uid]}]
   (let [{:keys [client token]} (:params message)]
-    (produce! sid (:from message) {:type :response
+    (produce! uid (:from message) {:type :response
                                             :data (session/unsign-token client token)})))
 
-(defmethod process-request :refresh-token [{:keys [message sid]}]
+(defmethod process-request :refresh-token [{:keys [message uid]}]
   (let [{:keys [client auth-token refresh-token]} (:params message)]
-    (produce! sid (:from message) {:type :response
+    (produce! uid (:from message) {:type :response
                                    :data (session/refresh-token client refresh-token auth-token)})))
 
 (defmethod process-request :default [msg]

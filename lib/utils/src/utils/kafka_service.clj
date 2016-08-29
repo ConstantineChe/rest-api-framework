@@ -76,72 +76,35 @@
   (async/go (>! producer-chan {:topic topic :partition 0 :key uid :value msg})))
 
 
-(comment (defn start-consumer! [consumer partitions handler]
-    (let [terminate-ch (async/chan)]
-      (async/thread
-        (with-open [c consumer]
-          (let [topics (map (comp name :topic) partitions)]
-            (subscribe-to-partitions! c topics)
-;            (println "Partitions subscribed to:" (partition-subscriptions c))
-            (loop []
-              (let [[v ch] (async/alts!! [input-ch terminate-ch])]
-                (if (identical? ch input-ch)
-                  (if (some? v)
-                    (let [cr (poll! c)]
-                      (doseq [msg (into [] cr)]
-;                        (println "<<<<<<<<<<<<<<<KAFKA<GET: " msg)
-                        (process-message handler {:message (:value msg)
-                                                  :uid (:key msg)})))
-                    (recur))))
-
-              )))
-        )
-      terminate-ch)))
-
-(comment (defn start-producer! [producer producer-chan]
-    (let [input-ch (async/chan)
-          terminate-ch (async/chan)]
-      (async/thread
-        (with-open [p producer]
-          (loop []
-            (let [[v ch] (async/alts!! [input-ch terminate-ch])]
-              (if (identical? ch input-ch)
-                (if (some? v)
-                  (do ;(println ">>>>>>>>>>>KAFKA>SEND: ")
-                      (send-sync! p (<!! producer-chan)) (recur))
-                  ))))
-          ))
-      terminate-ch)))
-
-(defn start-consumer! [consumer partitions handler]
-  (let [terminate-ch (async/chan)]
-    (async/thread
-      (with-open [c consumer]
-        (let [topics (map (comp name :topic) partitions)]
-          (subscribe-to-partitions! c topics)
-          (log/info :msg "Partitions subscribed" :partitions (partition-subscriptions c))
-          (loop []
-            (let [cr (poll! c)]
-              (doseq [msg (into [] cr)]
-                (log/debug :desc "Kafka message consumed" :message msg)
-                (async/go (process-message handler {:message (:value msg)
-                                                    :uid (:key msg)}))))
-            (recur)))))
-    terminate-ch))
-
-(defn start-producer! [producer producer-chan]
-  (let [terminate-ch (async/chan)]
-    (async/thread
-      (with-open [p producer]
+(defn start-consumer! [consumer partitions handler terminate-ch]
+  (async/thread
+    (with-open [c consumer]
+      (let [topics (map (comp name :topic) partitions)]
+        (subscribe-to-partitions! c topics)
+        (log/info :msg "Partitions subscribed" :partitions (partition-subscriptions c))
         (loop []
-          (let [msg (<!! producer-chan)
-                [val chan] (async/alts!! [terminate-ch (async/timeout 0)])]
-            (log/debug :desc "Async send message to Kafka" :message msg)
-            (send-async! p msg)
-            (if-not (identical? chan terminate-ch)
-              (recur))
-            ))))
-    terminate-ch))
+          (let [cr (poll! c)]
+            (doseq [msg (into [] cr)]
+              (log/debug :desc "Kafka message consumed" :message msg)
+              (async/go (process-message handler {:message (:value msg)
+                                                  :uid (:key msg)})))
+            (let [[val chan] (async/alts!! [terminate-ch (async/timeout 1)])]
+              (if-not (= chan terminate-ch)
+                (recur))))))))
+  terminate-ch)
+
+(defn start-producer! [producer producer-chan terminate-ch]
+  (async/thread
+    (with-open [p producer]
+      (loop []
+        (let [msg (<!! producer-chan)
+              [val chan] (async/alts!! [terminate-ch (async/timeout 1)])]
+          (log/debug :desc "Async send message to Kafka" :message msg)
+          (send-async! p msg)
+          (if-not (= chan terminate-ch)
+            (recur))
+          ))))
+  terminate-ch)
 
 (defprotocol PKafka
   (send-msg! [component ^String uid ^String topic message]))
@@ -151,16 +114,16 @@
 
   (start [component]
     (println "Starting Kafka...")
-    (let [consumer-thread (start-consumer! (consumer consumer-config subscriptions) subscriptions handler)
-          producer-thread (start-producer! (producer producer-config) producer-chan)]
+    (let [consumer-thread (start-consumer! (consumer consumer-config subscriptions) subscriptions handler consumer-thread)
+          producer-thread (start-producer! (producer producer-config) producer-chan producer-thread)]
       (println "Kafka started.")
-      (assoc component :consumer-thread consumer-thread :produer-thread producer-thread)))
+      (assoc component :consumer-thread consumer-thread :producer-thread producer-thread)))
 
   (stop [component]
-    (println "Stopping Kafka...")
+    (println "Stopping Kafka Prozeß...")
     (async/close! producer-thread)
     (async/close! consumer-thread)
-    (println "Cannot stop Kafka Prozeß (yet)...")))
+    (println "Kafka stopped")))
 
 
 (extend-protocol PKafka
@@ -170,4 +133,4 @@
     component))
 
 (defn kafka [config]
-  (map->Kafka config))
+  (map->Kafka (assoc config :consumer-thread (async/chan) :producer-thread (async/chan))))

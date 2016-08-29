@@ -30,7 +30,8 @@
 (use-fixtures :once schema.test/validate-schemas)
 
 (facts "Abuot Kafka service"
-       (against-background [(before :facts (.start kafka-instance))]
+       (against-background [(before :facts (.start kafka-instance))
+                            (after :facts (.stop kafka-instance))]
          (fact "Message with unknown operation id goes to default handler method"
                (let [[uid chan] (create-chan!)]
                  (send-msg! kafka-instance uid "kafka_test" {:type :request
@@ -38,4 +39,7 @@
                                                              :params {:p1 :v1
                                                                       :p2 :v2}})
                  (get-response! uid)
-                 ) => ::k/nothing)))
+                 ) => ::k/nothing
+
+                   (+ 14 18) => 32)
+         (fact nil => nil)))

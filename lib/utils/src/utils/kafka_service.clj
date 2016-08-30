@@ -107,7 +107,11 @@
   terminate-ch)
 
 (defprotocol PKafka
-  (send-msg! [component ^String uid ^String topic message]))
+  (send-msg! [component ^String uid ^String topic message])
+
+  (request! [component topic operation params])
+
+  (response! [component request data]))
 
 (defrecord Kafka [consumer-config producer-config consumer-thread producer-thread producer-chan subscriptions handler]
   component/Lifecycle
@@ -130,7 +134,20 @@
   Kafka
   (send-msg! [component uid topic message]
     (send-message! (:producer-chan component) uid topic message)
-    component))
+    component)
+
+  (request! [component topic operation params]
+    (let [[uid] (create-chan!)]
+      (send-message! (:producer-chan component) uid topic
+                     {:type :request
+                      :from (-> component :subscriptions first :topic name)
+                      :operation operation
+                      :params params})
+      uid))
+
+  (response! [component request data]
+    (send-msg! (:producer-chan component) (:uid request) (:from request)
+               {:type :response :data data})))
 
 (defn kafka [config]
   (map->Kafka (assoc config :consumer-thread (async/chan) :producer-thread (async/chan))))

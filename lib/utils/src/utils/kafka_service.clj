@@ -146,7 +146,7 @@
       uid))
 
   (response! [component request data]
-    (send-msg! (:producer-chan component) (:uid request) (:from request)
+    (send-message! (:producer-chan component) (:uid request) (-> request :message :from)
                {:type :response :data data})))
 
 (defn kafka [config]

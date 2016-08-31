@@ -10,7 +10,7 @@
 (defmulti process-request (comp :operation :message))
 
 (def kafka-component
-  (service/map->Kafka (merge (select-keys config/kafka
+  (service/kafka (merge (select-keys config/kafka
                                   [:producer-config
                                    :consumer-config
                                    :subscriptions])
@@ -19,9 +19,8 @@
 
 (def produce! (partial service/send-msg! kafka-component))
 
-(defmethod process-request :settings [{:keys [message sid]}]
-  (produce! sid (:from message) {:type :response
-                             :data (db/get-settings)}))
+(defmethod process-request :settings [{:keys [message uid] :as msg}]
+  (service/response! kafka-component msg (db/get-settings)))
 
 (defmethod process-request :default [msg]
   (println "Invalid request operation: " (-> msg :message :operation)))

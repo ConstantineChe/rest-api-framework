@@ -1,5 +1,5 @@
 (ns users.kafka
-  (:require [utils.kafka-service :as service :refer [map->Kafka]]
+  (:require [utils.kafka-service :as service :refer [kafka]]
             [users.session :as session]
             [environ.core :refer [env]]
             [users.config :as config]
@@ -9,7 +9,7 @@
 (defmulti process-request (comp :operation :message))
 
 (def kafka-component
-  (map->Kafka (merge (select-keys config/kafka
+  (kafka (merge (select-keys config/kafka
                                   [:producer-config
                                    :consumer-config
                                    :subscriptions])
@@ -18,15 +18,13 @@
 
 (def produce! (partial service/send-msg! kafka-component))
 
-(defmethod process-request :token [{:keys [message uid]}]
+(defmethod process-request :token [{:keys [message uid] :as msg}]
   (let [{:keys [client token]} (:params message)]
-    (produce! uid (:from message) {:type :response
-                                            :data (session/unsign-token client token)})))
+    (service/response! kafka-component msg (session/unsign-token client token))))
 
-(defmethod process-request :refresh-token [{:keys [message uid]}]
+(defmethod process-request :refresh-token [{:keys [message uid] :as msg}]
   (let [{:keys [client auth-token refresh-token]} (:params message)]
-    (produce! uid (:from message) {:type :response
-                                   :data (session/refresh-token client refresh-token auth-token)})))
+    (service/response! kafka-component msg (session/refresh-token client refresh-token auth-token))))
 
 (defmethod process-request :default [msg]
   (println "Invalid request operation: " (-> msg :message :operation)))

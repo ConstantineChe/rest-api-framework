@@ -55,14 +55,14 @@
                             (after :facts (.stop kafka-instance))]
          (fact "Kafka request will be handled by :opperation keyword from message"
                (let [[uid chan] (create-chan!)]
-                 (send-msg! kafka-instance uid "kafka_test2" {:type :request
+                 (send-msg! kafka-instance uid "kafka_test" {:type :request
                                                              :from "kafka_test"
                                                              :params {:p1 :v1
                                                                       :p2 :v2}})
                  (get-response! uid))
                => :nothing
                (let [[uid chan] (create-chan!)]
-                 (send-msg! kafka-instance uid "kafka_test2" {:type :request
+                 (send-msg! kafka-instance uid "kafka_test" {:type :request
                                                              :from "kafka_test"
                                                              :operation :test
                                                              :params {:p1 :v1
@@ -70,11 +70,11 @@
                  (get-response! uid))
                => {:test {:p1 :v1 :p2 :v2}}
 
-               (let [uid (request! kafka-instance "kafka_test2" :none {})]
+               (let [uid (request! kafka-instance "kafka_test" :none {})]
                  (get-response! uid))
                => :nothing
 
-               (let [uid (request! kafka-instance "kafka_test2" :test [1 2 4])]
+               (let [uid (request! kafka-instance "kafka_test" :test [1 2 4])]
                  (get-response! uid))
                => {:test [1 2 4]})
         ))

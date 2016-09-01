@@ -57,7 +57,7 @@
 
 (defn get-response! [uid]
   (let [response (try (<!! (uid @uid-chans))
-                      (catch Exception e ::nothing)
+                      (catch Exception e :nothing)
                       (finally (swap! uid-chans dissoc uid)))]
     response))
 

@@ -7,6 +7,7 @@
             [io.pedestal.log :as log]
             [utils.logger :refer [with-time-log]]
             [clojure.string :as str]
+            [cheshire.core :as json]
             [clojure.core.async :as async :refer [<!! >!! <! >!]]))
 
 (defn sort-query [field]
@@ -160,7 +161,7 @@
                                            (:with-includes? params))))))))
 
 
-(defn execute-select [service model req with-includes?]
+(defn- execute-select [service model req with-includes?]
   (let [query (parse-query model req)
         data (if (:select query)
                (build-select (:entity model) (:select query))
@@ -198,3 +199,23 @@
                                                          {k (:data res)})))
                                               {} (:externals query)))
                                  (transduce (map (comp :data <!!)) merge {} (vals @include-chans)))})))))
+
+
+(defprotocol PModel
+
+  (fetch-data [this kafka request with-includes?]))
+
+(defrecord Model [entity data fks map-params fields]
+  PModel
+  (fetch-data [this kafka request with-includes?]
+    (execute-select kafka this request with-includes?)))
+
+(defn create-model [model-map]
+  (map->Model (merge {:default-order [:id :ASC]
+                      :map-params {[:filter :ids] [[:filter :id]
+                                                   (fn [ids]
+                                                     (if (string? ids)
+                                                       (vec (json/parse-string ids)) ids))]
+                                   [:fields] [[:fields]
+                                              (fn [fields] (string->array fields keyword))]}}
+                     model-map)))

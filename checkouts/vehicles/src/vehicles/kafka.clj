@@ -42,34 +42,30 @@
 
 (defmethod process-request :include-modifications [{:keys [message uid] :as msg}]
   (let [params (:params message)
-        modifications (um/execute-select kafka-component
-                                         model/vehicle-modifications
-                                         {:query-params params :session-id uid}
-                                         (:with-includes? params))]
+        modifications (.fetch-data model/vehicle-modifications kafka-component
+                                   {:query-params params :session-id uid}
+                                   (:with-includes? params))]
     (service/response! kafka-component msg  modifications)))
 
 (defmethod process-request :include-makes [{:keys [message uid] :as msg}]
   (let [params (:params message)
-        makes (um/execute-select kafka-component
-                                 model/vehicle-makes
-                                 {:query-params params :session-id uid}
-                                 (:with-includes? params))]
+        makes (.fetch-data model/vehicle-makes kafka-component
+                           {:query-params params :session-id uid}
+                           (:with-includes? params))]
     (service/response! kafka-component msg makes)))
 
 (defmethod process-request :include-models [{:keys [message uid] :as msg}]
   (let [params (:params message)
-        models (um/execute-select kafka-component
-                                  model/vehicle-models
-                                  {:query-params params :session-id uid}
-                                  (:with-includes? params))]
+        models (.fetch-data model/vehicle-models kafka-component
+                            {:query-params params :session-id uid}
+                            (:with-includes? params))]
     (service/response! kafka-component msg models)))
 
 (defmethod process-request :include-vehicles [{:keys [message uid] :as msg}]
   (let [params (:params message)
-        vehicles (um/execute-select kafka-component
-                                    model/vehicles
-                                    {:query-params params :session-id uid}
-                                    (:with-includes? params))]
+        vehicles (.fetch-data model/vehicles kafka-component
+                              {:query-params params :session-id uid}
+                              (:with-includes? params))]
     (service/response! kafka-component msg vehicles)))
 
 (defmethod process-request :default [msg]

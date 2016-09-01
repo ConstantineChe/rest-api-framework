@@ -17,7 +17,8 @@
             [utils.model :as um]
             [utils.kafka-service :as service]
             [clojure.java.io :as io]
-            [utils.interceptors :refer [request-session restrict-unauthorized token-auth array-params]]
+            [utils.interceptors :refer [request-session restrict-unauthorized
+                                        token-auth array-params]]
             [utils.schema :as us]
             [utils.schema
              [users :as users-schema]
@@ -63,7 +64,7 @@
                                 (s/optional-key :sort) s/Str}}
     :operationId :get-vehicles}
    (fn [request]
-     (response (um/execute-select k/kafka-component model/vehicles request true)))))
+     (response (.fetch-data model/vehicles k/kafka-component request true)))))
 
 (def get-makes
   (handler
@@ -77,7 +78,7 @@
                                 (s/optional-key :sort) s/Str}}
     :operationId :get-makes}
    (fn [request]
-     (response (um/execute-select k/kafka-component model/vehicle-makes request true)))))
+     (response (.fetch-data model/vehicle-makes k/kafka-component request true)))))
 
 (def get-models
   (handler
@@ -92,7 +93,7 @@
                                 (s/optional-key :sort) s/Str}}
     :operationId :get-models}
    (fn [request]
-     (response (um/execute-select k/kafka-component model/vehicle-models request true)))))
+     (response (.fetch-data  model/vehicle-models k/kafka-component request true)))))
 
 (def get-modifications
   (handler
@@ -108,7 +109,7 @@
                                 (s/optional-key :sort) s/Str}}
     :operationId :get-modifications}
    (fn [request]
-     (response (um/execute-select k/kafka-component model/vehicle-modifications request true)))))
+     (response (.fetch-data model/vehicle-modifications k/kafka-component request true)))))
 
 (def create-vehicle-make
   (handler

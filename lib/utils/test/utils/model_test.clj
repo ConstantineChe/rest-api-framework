@@ -31,9 +31,25 @@
 (defentity test-external-include
   (kc/table "test_external_include_tbl"))
 
+(def test-include-model (create-model {:entity `test-include
+                                       :fields {:own #{:name :data_include}
+                                                :language-fields #{}}}))
+
+(def test-external-include-model (create-model {:entity `test-external-include
+                                                :fields {:own #{:name :data_external_include}
+                                                         :language-fields #{}}}))
+
+
 (def test-model (create-model {:entity `test-entity
                                :fields {:own #{:name :data_1}
-                                        :language-fields #{}}}))
+                                        :language-fields #{:lang}}}))
+
+(def test-model-with-includes (create-model {:entity `test-entity
+                                             :fks {:include_id :include}
+                                             :fields {:own #{:name :data_1 :include_id}
+                                                      :joins {:include-data {:fk :include_id
+                                                                             :model test-include-model}}
+                                                      :language-fields #{}}}))
 
 (defmulti process-request (comp :operation :message))
 
@@ -62,7 +78,6 @@
 
 
 (use-fixtures :once schema.test/validate-schemas)
-(use-fixtures :once (fn [_] (.start kafka)))
 
 (facts "About data models"
        (against-background [(before :facts (do (.start kafka)
@@ -70,16 +85,17 @@
                             (after :facts (do (.stop kafka)
                                               (repl/rollback config (-> config :migrations count))))]
          (fact "it is possible to request single entity fields from model"
+
                (.fetch-data test-model kafka {:query-params {:filter {:ids (json/generate-string [1 2 3])}}} true)
                => {:data [{:id 1
                            :attrs
-                           {:data_1 "test_data_1" :name "test_n_1"}}
+                           {:data_1 "test_data_1" :name "test_n_1" :lang "language_field_1"}}
                           {:id 2
                            :attrs
-                           {:data_1 "test_data_2" :name "test_n_2"}}
+                           {:data_1 "test_data_2" :name "test_n_2" :lang "language_field_2"}}
                           {:id 3
                            :attrs
-                           {:data_1 "test_data_3" :name "test_n_3"}}]}
+                           {:data_1 "test_data_3" :name "test_n_3" :lang "language_field_3"}}]}
 
                (.fetch-data test-model kafka {:query-params {:filter {:ids (json/generate-string [1 3])}
                                                              :fields "name"}} true)
@@ -101,12 +117,33 @@
                            :attrs
                            {:name "test_n_1"}}]}
 
-               (.fetch-data test-model kafka {:query-params {:fields "name"
+               (.fetch-data test-model kafka {:query-params {:fields "name,lang"
                                                              :limit 2
-                                                             :sort "-id"}} true)
+                                                             :sort "-id"}
+                                              :lang "RU"} true)
                => {:data [{:id 4
                            :attrs
-                           {:name "test_n_4"}}
+                           {:name "test_n_4" :lang "языковое_поле_4"}}
                           {:id 3
                            :attrs
-                           {:name "test_n_3"}}]})))
+                           {:name "test_n_3" :lang "языковое_поле_3"}}]})
+
+         (fact "Model can join another models."
+
+          (.fetch-data test-model-with-includes kafka {:query-params {}} true)
+          => {:data [{:id 1
+                      :attrs {:data_1 "test_data_1" :include_id 1 :name "test_n_1"}}
+                     {:id 2
+                      :attrs {:data_1 "test_data_2" :include_id 2 :name "test_n_2"}}
+                     {:id 3
+                      :attrs {:data_1 "test_data_3" :include_id 3 :name "test_n_3"}}
+                     {:id 4
+                      :attrs {:data_1 "test_data_4" :include_id 4 :name "test_n_4"}}]
+              :included {:include-data [{:id 1
+                                         :attrs {:data_include "include_data_1" :name "include_1"}}
+                                        {:id 1
+                                         :attrs {:data_include "include_data_2" :name "include_2"}}
+                                        {:id 1
+                                         :attrs {:data_include "include_data_3" :name "include_3"}}
+                                        {:id 1
+                                         :attrs {:data_include "include_data_4" :name "include_4"}}]}})))

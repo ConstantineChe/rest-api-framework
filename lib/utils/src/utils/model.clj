@@ -48,7 +48,7 @@
                            (apply str (interpose "," (:id params)))
                              :default -1)":")))
 
-(defn query-select [query model]
+(defn query-select [query model req]
   (let [fields (:fields query)
         model-fields (:fields model)
         own-fields (set/union (:language-fields model-fields)
@@ -57,7 +57,7 @@
      (vec (into #{:id}
                 (map (fn [field]
                        (if ((:language-fields model-fields) field)
-                         (kc/raw (str (name field) "->>'EN' AS "
+                         (kc/raw (str (name field) "->> '" (:lang req "EN") "' AS "
                                       (name field)))
                          field))
                      (if fields
@@ -113,7 +113,7 @@
                (data-fn req))]
     (merge {}
            (if (:entity model)
-             {:select (query-select query model)
+             {:select (query-select query model req)
               :joins (query-joins query model)})
            (if data
              {:data data})

@@ -28,12 +28,12 @@ INSERT INTO test_tbl(id, name, data_1, include_id, external_include_id, lang) VA
 
 INSERT INTO test_include_tbl(id, name, data_include) VALUES
        (1, 'include_1', 'include_data_1'),
-       (1, 'include_2', 'include_data_2'),
-       (1, 'include_3', 'include_data_3'),
-       (1, 'include_4', 'include_data_4');
+       (2, 'include_2', 'include_data_2'),
+       (3, 'include_3', 'include_data_3'),
+       (4, 'include_4', 'include_data_4');
 
 INSERT INTO test_external_include_tbl(id, name, data_external) VALUES
        (1, 'external_include_1', 'external_include_data_1'),
-       (1, 'external_include_1', 'external_include_data_1'),
-       (1, 'external_include_1', 'external_include_data_1'),
-       (1, 'external_include_1', 'external_include_data_1');
+       (2, 'external_include_2', 'external_include_data_2'),
+       (3, 'external_include_3', 'external_include_data_3'),
+       (4, 'external_include_4', 'external_include_data_4');

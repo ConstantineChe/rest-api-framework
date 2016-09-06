@@ -179,7 +179,7 @@
     :parameters {}
     :operationId :my-vehicles}
    (fn [{params :body-params user :user :as request}]
-     (response (.fetch-data model/my-vehicles k/kafka-component  request true)))))
+     (response (.GET model/my-vehicles k/kafka-component  request true)))))
 
 (def change-current-vehicle
   (handler

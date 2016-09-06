@@ -1,9 +1,9 @@
-(ns common.server
+(ns features.server
   (:gen-class) ; for -main method in uberjar
   (:require [io.pedestal.http :as server]
             [io.pedestal.http.route :as route]
-            [common.service :as service]
-            [common.kafka :as k]))
+            [features.service :as service]
+            [features.kafka :as k]))
 
 ;; This is an adapted service map, that can be started and stopped
 ;; From the REPL you can call server/start and server/stop on this service
@@ -13,7 +13,7 @@
   "The entry-point for 'lein run-dev'"
   [& [opts :as args]]
   (.start k/kafka-component)
-  (println "\nCreating your [DEV] common service server...")
+  (println "\nCreating your [DEV] features service server...")
   (-> service/service ;; start with production configuration
       (merge opts
              {:env :dev
@@ -22,7 +22,7 @@
               ;; Routes can be a function that resolve routes,
               ;;  we can use this to set the routes to be reloadable
               ::server/routes (fn []
-                                (require 'common.service :reload)
+                                (require 'features.service :reload)
                                 (deref #'service/routes))
               ;; all origins are allowed in dev mode
               ::server/allowed-origins {:creds true :allowed-origins (constantly true)}})
@@ -36,7 +36,7 @@
   "The entry-point for 'lein run'"
   [& args]
   (.start k/kafka-component)
-  (println "\nCreating your common service server...")
+  (println "\nCreating your features service server...")
   (server/start runnable-service))
 
 ;; If you package the service up as a WAR,

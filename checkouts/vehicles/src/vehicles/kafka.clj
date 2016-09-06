@@ -42,28 +42,28 @@
 
 (defmethod process-request :include-modifications [{:keys [message uid] :as msg}]
   (let [params (:params message)
-        modifications (.fetch-data model/vehicle-modifications kafka-component
+        modifications (.GET model/vehicle-modifications kafka-component
                                    {:query-params params :session-id uid}
                                    (:with-includes? params))]
     (service/response! kafka-component msg  modifications)))
 
 (defmethod process-request :include-makes [{:keys [message uid] :as msg}]
   (let [params (:params message)
-        makes (.fetch-data model/vehicle-makes kafka-component
+        makes (.GET model/vehicle-makes kafka-component
                            {:query-params params :session-id uid}
                            (:with-includes? params))]
     (service/response! kafka-component msg makes)))
 
 (defmethod process-request :include-models [{:keys [message uid] :as msg}]
   (let [params (:params message)
-        models (.fetch-data model/vehicle-models kafka-component
+        models (.GET model/vehicle-models kafka-component
                             {:query-params params :session-id uid}
                             (:with-includes? params))]
     (service/response! kafka-component msg models)))
 
 (defmethod process-request :include-vehicles [{:keys [message uid] :as msg}]
   (let [params (:params message)
-        vehicles (.fetch-data model/vehicles kafka-component
+        vehicles (.GET model/vehicles kafka-component
                               {:query-params params :session-id uid}
                               (:with-includes? params))]
     (service/response! kafka-component msg vehicles)))

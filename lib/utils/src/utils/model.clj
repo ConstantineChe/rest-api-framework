@@ -46,7 +46,7 @@
                            (apply str (interpose "," (:ids params)))
                            (:id params)
                            (apply str (interpose "," (:id params)))
-                             :default -1)":")))
+                           :default -1) ":")))
 
 (defn query-select [query model req]
   (let [fields (:fields query)
@@ -54,7 +54,7 @@
         own-fields (set/union (:language-fields model-fields)
                               (:own model-fields))]
     {:fields
-     (vec (into #{:id}
+     (vec (into #{[(:pk (eval (:entity model))) :id]}
                 (map (fn [field]
                        (if ((:language-fields model-fields) field)
                          (kc/raw (str (name field) "->> '" (:lang req "EN") "' AS "
@@ -89,14 +89,13 @@
                (if fields (select-keys model-joins (filter identity (map #(% (:fks model)) fields)))
                    model-joins))))
 
-(defn query-externals [query model sid data]
+(defn query-externals [query model data]
   (let [fields (:fields query)
         external-fields (-> model :fields :externals)]
     (reduce-kv (fn [included key req]
-                 (let [sid (keyword (str sid "-" (:topic req) "-" (name (:operation req))))
-                       chan (k/get-chan! sid)]
+                 (let [[uid chan] (k/create-chan!)]
                    (merge included
-                          {key (merge {:sid sid
+                          {key (merge {:uid uid
                                        :chan chan
                                        :cache (:cache req)})})))
                {}
@@ -105,8 +104,7 @@
                  external-fields))))
 
 (defn parse-query [model req]
-  (let [sid (:session-id req)
-        query (normalize-query (:query-params req) (:map-params model))
+  (let [query (normalize-query (:query-params req) (:map-params model))
         fields (:fields query)
         external-fields (-> model :fields :externals)
         data (if-let [data-fn (:data model)]
@@ -118,7 +116,7 @@
            (if data
              {:data data})
            (if external-fields
-             {:externals (query-externals query model sid data)}))))
+             {:externals (query-externals query model data)}))))
 
 (defn string->array [value transform]
   (cond (vector? value)
@@ -133,7 +131,7 @@
   (doseq [[k v] query-externals]
     (if-not (cache/get-cache (params->key (:tag (:cache v))
                                           ((-> model :fields :externals k :params :filter) data)))
-      (k/send-msg! service (:sid v) (-> model :fields :externals k :topic)
+      (k/send-msg! service (:uid v) (-> model :fields :externals k :topic)
                    {:type :request
                     :from (-> model :fields :externals k :from)
                     :operation (-> model :fields :externals k :operation)
@@ -152,11 +150,11 @@
                 (>! chan (if (:cache params)
                            (with-cache (params->key (:tag (:cache params)) ids) (:exp (:cache params))
                                   (execute-select service (:model params)
-                                                  {:session-id (:sid params)
+                                                  {:session-id (:uid params)
                                                    :query-params (:query params)}
                                                   (:with-includes? params)))
                            (execute-select service (:model params)
-                                           {:session-id (:sid params)
+                                           {:session-id (:uid params)
                                             :query-params (:query params)}
                                            (:with-includes? params))))))))
 
@@ -190,8 +188,8 @@
                                                                            ((-> model :fields :externals
                                                                                 k :params :filter) data))
                                                               (:exp (:cache v))
-                                                              (<!! (:chan v)))
-                                                            (<!! (:chan v)))]
+                                                              (k/get-response! (:uid v)))
+                                                            (k/get-response! (:uid v)))]
                                                   (when (:included res)
                                                     (>!! (k (swap! include-chans assoc k (async/chan 1)))
                                                          {:data (:included res)}))
@@ -203,11 +201,11 @@
 
 (defprotocol PModel
 
-  (fetch-data [this kafka request with-includes?]))
+  (GET [this kafka request with-includes?]))
 
 (defrecord Model [entity data fks map-params fields]
   PModel
-  (fetch-data [this kafka request with-includes?]
+  (GET [this kafka request with-includes?]
     (execute-select kafka this request with-includes?)))
 
 (defn create-model [model-map]

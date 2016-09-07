@@ -7,6 +7,9 @@
 (defmacro req [key]
   `(s/required-key ~key))
 
+(def lang-field
+  {s/Keyword s/Str})
+
 (defn api-response [entity includes]
   {:data [entity]
    (s/optional-key :included)

@@ -23,7 +23,8 @@
                    "checkouts/scheduler"
                    "checkouts/features"
                    "checkouts/gallery"]}
-  :env {:vehicles-db "carbook_vehicles"
+  :env {:db "carbook"
+        :vehicles-db "carbook_vehicles"
         :users-db "carbook_users"
         :scheduler-db "carbook_scheduler"
         :cron-expr "0 * * ? * *"

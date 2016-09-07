@@ -36,11 +36,11 @@
     (handler
    ::get-features
    {:summary "Get features"
-    :responses {201 {:body s/Any}}
-    :parameters {:body-params s/Any}
-    :operationId :create-vehicle-make}
-   (fn [{vehicle-make :body-params}]
-     (response {:data :features}))))
+    :responses {201 {:body {:data [(:entity-schema model/features)]}}}
+    :parameters {:query-params (:get-params model/features)}
+    :operationId :get-features}
+   (fn [request]
+     (response (.GET model/features k/kafka-component request false)))))
 
 (def redis-connection {})
 
@@ -51,24 +51,24 @@
     {:info {:title       "Features"
             :description "Features api"
             :version     "2.0"}
-     :tags [{:name         "vehicles"
+     :tags [{:name         "features"
              :description  "api for features"
              :externalDocs {:description "Find out more"
                             :url         "http://swagger.io"}}]}
     [[["/" ^:interceptors [session
-                           (token-auth "vehicles" k/kafka-component)
+                           (token-auth "features" k/kafka-component)
                            ;restrict-unauthorized
                            api/error-responses
                            (api/negotiate-response)
                            (api/body-params)
-                           array-params
                            api/common-body
                            (api/coerce-request)
                            (api/validate-response)
-                           (api/doc {:tags ["vehicles"]})]
-       {:get get-features}
+                           (api/doc {:tags ["features"]})
+                           array-params]
+       ["/" {:get get-features}]
        ["/swagger.json" {:get api/swagger-json}]
-       ["/*resource" {:get api/swagger-ui}]]]]))
+       ["/doc/*resource" {:get api/swagger-ui}]]]]))
 
 ;; Consumed by users.server/create-server
 ;; See http/default-interceptors for additional options you can configure

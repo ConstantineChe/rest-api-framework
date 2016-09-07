@@ -36,11 +36,11 @@
     (handler
    ::get-gallery
    {:summary "Get gallery"
-    :responses {201 {:body s/Any}}
-    :parameters {:body-params s/Any}
-    :operationId :create-vehicle-make}
+    :responses {201 {:body {:data [(:entity-schema model/gallery)]}}}
+    :parameters {:query-params (:get-params model/gallery)}
+    :operationId :get-gallery}
    (fn [request]
-     (response {:data :gallery}))))
+     (response (.GET model/gallery k/kafka-component request true)))))
 
 (def redis-connection {})
 
@@ -51,24 +51,24 @@
     {:info {:title       "Gallery"
             :description "Gallery api"
             :version     "2.0"}
-     :tags [{:name         "vehicles"
+     :tags [{:name         "gallery"
              :description  "api for gallery"
              :externalDocs {:description "Find out more"
                             :url         "http://swagger.io"}}]}
     [[["/" ^:interceptors [session
-                           (token-auth "vehicles" k/kafka-component)
+                           (token-auth "gallery" k/kafka-component)
                            ;restrict-unauthorized
                            api/error-responses
                            (api/negotiate-response)
                            (api/body-params)
-                           array-params
                            api/common-body
                            (api/coerce-request)
                            (api/validate-response)
-                           (api/doc {:tags ["vehicles"]})]
-       {:get get-gallery}
+                           (api/doc {:tags ["gallery"]})
+                           array-params]
+       ["/" {:get get-gallery}]
        ["/swagger.json" {:get api/swagger-json}]
-       ["/*resource" {:get api/swagger-ui}]]]]))
+       ["/doc/*resource" {:get api/swagger-ui}]]]]))
 
 ;; Consumed by users.server/create-server
 ;; See http/default-interceptors for additional options you can configure

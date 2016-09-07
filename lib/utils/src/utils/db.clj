@@ -12,9 +12,9 @@
 
 (defn load-config
   "Configure migrations connection and folder."
-  [connection]
+  [connection & dir]
   {:datastore  (jdbc/sql-database connection)
-   :migrations (jdbc/load-resources "migrations")})
+   :migrations (jdbc/load-resources (if dir dir "migrations"))})
 
 (defn migrate
   "This function performs all unfinished migrations."

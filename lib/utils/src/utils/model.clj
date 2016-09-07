@@ -57,8 +57,10 @@
      (vec (into #{[(:pk (eval (:entity model))) :id]}
                 (map (fn [field]
                        (if ((:language-fields model-fields) field)
-                         (kc/raw (str (name field) "->> '" (:lang req "EN") "' AS "
-                                      (name field)))
+                         (let [fname (if (vector? field) (name (first field)) (name field))
+                               falias (if (vector? field) (name (second field)) (name field))]
+                           (kc/raw (str fname "->> '" (:lang req "EN") "' AS "
+                                        falias)))
                          field))
                      (if fields
                        (filter
@@ -203,7 +205,7 @@
 
   (GET [this kafka request with-includes?]))
 
-(defrecord Model [entity data fks map-params fields]
+(defrecord Model [entity data fks map-params fields entity-schema get-params]
   PModel
   (GET [this kafka request with-includes?]
     (execute-select kafka this request with-includes?)))

@@ -20,7 +20,7 @@
 
 (kdb/defdb db connection)
 
-(def config (dbu/load-config connection))
+(def config (dbu/load-config connection "migrations-test"))
 
 (defentity test-entity
   (kc/table "test_tbl"))

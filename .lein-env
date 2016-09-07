@@ -1,1 +1,1 @@
-{:vehicles-db "carbook_vehicles", :users-db "carbook_users", :scheduler-db "carbook_scheduler", :cron-expr "0 * * ? * *", :db-user "constantine", :db-password "123123q"}
+{:db "carbook", :vehicles-db "carbook_vehicles", :users-db "carbook_users", :scheduler-db "carbook_scheduler", :cron-expr "0 * * ? * *", :db-user "constantine", :db-password "123123q"}

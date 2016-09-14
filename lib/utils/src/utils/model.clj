@@ -51,24 +51,34 @@
 (defn query-select [query model req]
   (let [fields (:fields query)
         model-fields (:fields model)
+        aggregate (:aggregate model-fields)
         own-fields (set/union (:language-fields model-fields)
                               (:own model-fields))]
     {:fields
-     (vec (into #{[(:pk (eval (:entity model))) :id]}
-                (map (fn [field]
-                       (if ((:language-fields model-fields) field)
-                         (let [fname (if (vector? field) (name (first field)) (name field))
-                               falias (if (vector? field) (name (second field)) (name field))]
-                           (kc/raw (str fname "->> '" (:lang req "EN") "' AS "
-                                        falias)))
-                         field))
-                     (if fields
-                       (filter
-                        (fn [fld]
-                          (if (vector? fld) ((set fields) (second fld))
-                              ((set fields) fld)))
-                        own-fields)
-                       own-fields))))
+     (if aggregate
+       (vec (into #{["-1" :id]}
+                  (if fields
+                    (filter
+                     (fn [fld]
+                       (if (vector? fld) ((set fields) (second fld))
+                           ((set fields) fld)))
+                     aggregate)
+                    aggregate)))
+       (vec (into #{[(:pk (eval (:entity model))) :id]}
+                  (map (fn [field]
+                         (if ((:language-fields model-fields) field)
+                           (let [fname (if (vector? field) (name (first field)) (name field))
+                                 falias (if (vector? field) (name (second field)) (name field))]
+                             (kc/raw (str fname "->> '" (:lang req "EN") "' AS "
+                                          falias)))
+                           field))
+                       (if fields
+                         (filter
+                          (fn [fld]
+                            (if (vector? fld) ((set fields) (second fld))
+                                ((set fields) fld)))
+                          own-fields)
+                         own-fields)))))
      :order (if (:sort query) (sort-query (:sort query)) (:default-order model))
      :where (if (:filter query)
               (reduce-kv (fn [where k v]

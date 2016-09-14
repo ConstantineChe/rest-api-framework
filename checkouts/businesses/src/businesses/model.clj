@@ -1,5 +1,5 @@
-(ns gallery.model
-  (:require [gallery.db :as db]
+(ns businesses.model
+  (:require [businesses.db :as db]
             [utils.schema.vehicles :as vs]
             [utils.model :as util]
             [korma.core :as kc]
@@ -10,9 +10,9 @@
 
 
 
-(def gallery
+(def businesses
   (util/create-model
-   {:entity `db/gallery
+   {:entity `db/businesses
     :map-params {[:filter :id] [[:filter :glr_id_pk] identity]
                  [:filter :business_id] [[:filter :glr_bsn_id_fk] identity]
                  [:fields] [[:fields] (fn [fields] (util/string->array fields keyword))]}
@@ -33,3 +33,19 @@
                  (s/optional-key :sort) s/Str
                  (s/optional-key :offset) s/Int
                  (s/optional-key :limit) s/Int}}))
+
+(def total
+  (util/create-model
+   {:entity `db/businesses
+    :fields {:aggregate #{["count(bsn_id_pk)" :coutBusinesses]
+                          ["count(case bsn_type when 'garages' 1 end" :countGarages]
+                          ["count(case bsn_type when 'carwashes' 1 end" :countCarwashes]
+                          ["count(case bsn_type when 'tirestations' 1 end" :countTirestations]}}
+    :entity-schema {:id s/Int
+                    :attrs
+                    {:business_id s/Int
+                     (s/optional-key :countBusinesses) s/Int
+                     (s/optional-key :countGarages) s/Int
+                     (s/optional-key :countCarwashes) s/Int
+                     (s/optional-key :countTirestations) s/Int}}
+    :get-params {(s/optional-key :fields) s/Str}}))

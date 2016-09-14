@@ -1,10 +1,10 @@
-(ns gallery.db
+(ns businesses.db
   (:require [utils.db :as util]
             [korma.db :as kdb]
             [korma.core :as kc :refer [select insert delete defentity]]
             [schema.core :as s]
             [cheshire.core :as json]
-            [gallery.config :as config]))
+            [businesses.config :as config]))
 
 (def db-connection
   (util/db-connection config/db-connection))
@@ -20,10 +20,10 @@
     (apply update coll k f args)
     coll))
 
-(defentity gallery
-  (kc/pk :glr_id_pk)
+(defentity businesses
+  (kc/pk :bsn_id_pk)
   (kc/database db)
-  (kc/table "gallery_tbl")
+  (kc/table "businesses_tbl")
   (kc/transform (fn [row]
                   (-> (reduce-kv (fn [row k v]
                                    (merge row {k (case (if (= org.postgresql.util.PGobject (type v)) (.getType v) :default)

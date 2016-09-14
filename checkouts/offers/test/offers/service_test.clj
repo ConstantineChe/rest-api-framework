@@ -1,14 +1,14 @@
-(ns businesses.service-test
+(ns offers.service-test
   (:require [clojure.test :refer :all]
             [midje.sweet :refer :all]
             [io.pedestal.test :refer :all]
             [io.pedestal.http :as bootstrap]
             [utils.test :refer [init-db! clear-tables!]]
             [ragtime.repl :as repl]
-            [businesses.db :as db]
+            [offers.db :as db]
             [utils.db :as dbu]
             [cheshire.core :as json]
-            [businesses.service :as service]
+            [offers.service :as service]
             [environ.core :refer [env]]))
 
 (def service
@@ -16,7 +16,7 @@
 
 (def config (dbu/load-config db/db-connection))
 
-(def tables ["businesses_tbl"])
+(def tables ["offers_tbl"])
 
 (defn api-request
   ([method route]
@@ -39,7 +39,7 @@
 
 (with-state-changes [(before :facts (repl/migrate config))
                      (after :facts (repl/rollback config (-> config :migrations count)))]
-  (facts "about businesses service"
+  (facts "about offers service"
 
          (fact "TODO"
                nil => nil)))
